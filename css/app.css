@@ -1,0 +1,33 @@
+/* =====================================================================
+   Fitness Tracker — app shell extras: Overview dashboard.
+   ===================================================================== */
+
+/* ---------- Overview ---------- */
+.ov-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.ov-stat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--card);
+}
+.ov-stat-header {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 14px; margin-bottom: 10px;
+}
+.ov-stat-lines { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.ov-stat-line { font-size: 13px; color: var(--muted); }
+.ov-stat-line .ov-val { color: var(--text); font-weight: 600; margin-right: 4px; }
+
+.ov-recent-list { display: flex; flex-direction: column; }
+.ov-recent-day { font-size: 12px; color: var(--muted); margin: 10px 0 4px; font-weight: 600; }
+.ov-recent-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.ov-recent-row:last-child { border-bottom: 0; }
+.ov-emoji { flex: 0 0 auto; }
+.ov-recent-text { color: var(--text); }

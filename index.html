@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Tracker</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/tools.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f766e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fitness Tracker">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+</head>
+<body>
+
+<!-- ================= LOAD SCREEN ================= -->
+<div id="load-screen">
+  <div class="load-box">
+    <h1>Fitness Tracker</h1>
+    <p>Load your JSON data file to get started.</p>
+    <label class="drop" id="drop-zone">
+      <input type="file" id="file-input" accept=".json">
+      <strong>Click to choose a file</strong><br>
+      or drop it here
+    </label>
+    <div id="load-err"></div>
+    <span id="sample-link">No file yet? Download a sample to try it</span><br><br>
+    <button class="btn" id="fresh-link">Or start from scratch (empty file)</button>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <h1>Fitness Tracker <span class="file-name" id="file-name"></span></h1>
+    <div class="topbar-actions">
+      <button class="theme-toggle" id="theme-toggle" title="Toggle dark / light mode"><span id="theme-emoji">🌙</span><span id="theme-label"> Dark</span></button>
+      <div class="menu-wrap">
+        <button class="menu-btn" id="menu-btn" title="Menu">☰</button>
+        <div class="menu" id="menu">
+          <button class="menu-item" id="save-btn" title="Download your data as a backup file">Save backup file…</button>
+          <button class="menu-item" id="open-item" title="Open a JSON data file (e.g. from iCloud)">Open a data file…</button>
+          <button class="menu-item danger" id="new-file-btn" title="Start over with a fresh empty file">New file</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="toolbar" id="toolbar">
+    <button class="tool-btn active" data-tool="overview" onclick="showTool('overview')">📊 Overview</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section class="tool" id="tool-overview">
+    <div class="card">
+      <h2>Totals</h2>
+      <div id="ov-stats"></div>
+    </div>
+    <div class="card">
+      <h2>Recent activity</h2>
+      <div id="ov-recent"><p class="no-data">No activity yet — add entries in any tool.</p></div>
+    </div>
+  </section>
+
+  <!-- CLIMB -->
+  <section class="tool hidden" id="tool-climb">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      <h2 style="margin:0;font-size:20px;">Climbing</h2>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-view="home">Home</button>
+      <button class="tab" data-view="history">History</button>
+      <button class="tab" data-view="routes">Routes</button>
+    </nav>
+
+    <!-- HOME -->
+    <div class="view" id="cl-view-home">
+      <div class="card">
+        <h2>Add climb</h2>
+        <form class="add-form" id="cl-add-form">
+          <div class="field">
+            <label for="cl-pick-route">Or pick an existing route</label>
+            <select id="cl-pick-route" style="width:220px">
+              <option value="">— select a route —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="cl-add-name">Route name</label>
+            <input id="cl-add-name" list="cl-route-list" placeholder="Snake Dike" autocomplete="off" required style="width:180px">
+          </div>
+          <div class="field">
+            <label for="cl-add-grade">Grade</label>
+            <input id="cl-add-grade" list="cl-grade-list" placeholder="5.8 / v3 / E5" style="width:110px">
+          </div>
+          <div class="field">
+            <label for="cl-add-pitches">Pitches</label>
+            <input id="cl-add-pitches" type="number" min="0" step="any" placeholder="1" style="width:70px">
+          </div>
+          <div class="field">
+            <label for="cl-add-style">Style</label>
+            <input id="cl-add-style" list="cl-style-list" placeholder="crack" style="width:100px">
+          </div>
+          <div class="field">
+            <label for="cl-add-location">Location</label>
+            <input id="cl-add-location" type="text" list="cl-location-list" placeholder="Yosemite NP, CA" style="width:140px">
+          </div>
+          <div class="field">
+            <label for="cl-add-link">Link</label>
+            <input id="cl-add-link" type="text" list="cl-link-list" placeholder="mountainproject.com/..." style="width:230px">
+          </div>
+          <div class="field">
+            <label for="cl-add-rnotes">Route notes / description</label>
+            <input id="cl-add-rnotes" type="text" list="cl-rnotes-list" placeholder="runout, big approach" style="width:220px">
+          </div>
+          <div class="field">
+            <label for="cl-add-date">Date</label>
+            <input id="cl-add-date" type="date" style="width:140px">
+          </div>
+          <div class="field">
+            <label for="cl-add-prof">Proficiency</label>
+            <input id="cl-add-prof" type="text" list="cl-prof-list" placeholder="lead" style="width:120px">
+          </div>
+          <div class="field">
+            <label for="cl-add-setting">Setting</label>
+            <input id="cl-add-setting" type="text" list="cl-setting-list" placeholder="gym" style="width:110px">
+          </div>
+          <div class="field">
+            <label for="cl-add-effort">Effort (1-10)</label>
+            <input id="cl-add-effort" type="number" min="1" max="10" value="5" style="width:70px">
+          </div>
+          <div class="field">
+            <label for="cl-add-scary">Scary (1-10)</label>
+            <input id="cl-add-scary" type="number" min="1" max="10" value="5" style="width:70px">
+          </div>
+          <div class="field">
+            <label for="cl-add-notes">Climb notes</label>
+            <input id="cl-add-notes" type="text" list="cl-notes-list" placeholder="went clean, crux felt hard" style="width:220px">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn primary">Add climb</button>
+          </div>
+        </form>
+        <datalist id="cl-route-list"></datalist>
+        <datalist id="cl-grade-list"></datalist>
+        <datalist id="cl-style-list"></datalist>
+        <datalist id="cl-location-list"></datalist>
+        <datalist id="cl-link-list"></datalist>
+        <datalist id="cl-rnotes-list"></datalist>
+        <datalist id="cl-notes-list"></datalist>
+        <datalist id="cl-prof-list"></datalist>
+        <datalist id="cl-setting-list"></datalist>
+        <p class="form-hint">
+          Picking an existing route (or typing a name you've used before) auto-fills its details.
+          Location, link and route notes are saved to the route for a brand-new name; edit them here any
+          time. Effort and scary are your perceived difficulty and intimidation, 1-10.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="summary">
+          <span class="big" id="cl-total-climbs">0</span>
+          <span class="unit">total climbs</span>
+        </div>
+        <h2 style="margin-top:16px;">Last 10 climbs</h2>
+        <div id="cl-last-climbs"><p class="no-data" style="padding:10px 0;">No climbs yet.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Climbs by grade</h2>
+        <div class="range-tabs" id="cl-time-range"></div>
+        <div class="chart-summary" id="cl-time-summary"></div>
+        <div id="cl-time-chart"></div>
+      </div>
+      <div class="card">
+        <h2>Most climbed routes (by count)</h2>
+        <div class="range-tabs" id="cl-route-range"></div>
+        <div class="chart-summary" id="cl-route-summary"></div>
+        <div id="cl-route-chart"></div>
+      </div>
+      <div class="card">
+        <h2>Climbs by proficiency</h2>
+        <div class="range-tabs" id="cl-prof-range"></div>
+        <div class="chart-summary" id="cl-prof-summary"></div>
+        <div id="cl-prof-chart"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="view hidden" id="cl-view-history">
+      <div class="card">
+        <h2>History</h2>
+        <div class="hist-filters">
+          <div class="field">
+            <label for="cl-hist-from">From</label>
+            <input type="date" id="cl-hist-from">
+          </div>
+          <div class="field">
+            <label for="cl-hist-to">To</label>
+            <input type="date" id="cl-hist-to">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" id="cl-hist-apply" title="Filter the history to this date range">Apply</button>
+          </div>
+          <div class="hist-presets">
+            <button class="btn small hist-preset" data-preset="week">This week</button>
+            <button class="btn small hist-preset" data-preset="month">This month</button>
+            <button class="btn small hist-preset" data-preset="lastmonth">Last month</button>
+            <button class="btn small hist-preset" data-preset="year">Year to date</button>
+            <button class="btn small hist-preset" data-preset="all">All</button>
+          </div>
+        </div>
+        <p class="hist-summary" id="cl-hist-summary"></p>
+        <div id="cl-history-list"></div>
+      </div>
+    </div>
+
+    <!-- ROUTES -->
+    <div class="view hidden" id="cl-view-routes">
+      <div class="card">
+        <h2>Routes</h2>
+        <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
+          Routes are stored once. Editing a route here updates it everywhere it's used.
+          Click a route name to expand it and see every note ever attached to its climbs.
+        </p>
+        <div id="cl-routes-table"></div>
+      </div>
+    </div>
+
+    <!-- Edit Climb Modal -->
+    <div id="cl-edit-climb-modal" class="modal-backdrop hidden">
+      <div class="modal-box">
+        <h2>Edit climb</h2>
+        <div class="modal-row">
+          <div class="modal-field" style="flex:2;">
+            <label for="cl-ec-route">Route</label>
+            <select id="cl-ec-route"></select>
+          </div>
+          <div class="modal-field">
+            <label for="cl-ec-date">Date</label>
+            <input id="cl-ec-date" type="date">
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label for="cl-ec-grade">Grade</label>
+            <input id="cl-ec-grade" type="text" list="cl-grade-list-edit">
+          </div>
+          <div class="modal-field">
+            <label for="cl-ec-prof">Proficiency</label>
+            <input id="cl-ec-prof" type="text" list="cl-prof-list-edit">
+          </div>
+          <div class="modal-field">
+            <label for="cl-ec-setting">Setting</label>
+            <input id="cl-ec-setting" type="text" list="cl-setting-list-edit">
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label for="cl-ec-effort">Effort (1-10)</label>
+            <input id="cl-ec-effort" type="number" min="1" max="10">
+          </div>
+          <div class="modal-field">
+            <label for="cl-ec-scary">Scary (1-10)</label>
+            <input id="cl-ec-scary" type="number" min="1" max="10">
+          </div>
+          <div class="modal-field" style="flex:2;">
+            <label for="cl-ec-notes">Climb notes</label>
+            <input id="cl-ec-notes" type="text" list="cl-notes-list-edit">
+          </div>
+        </div>
+        <datalist id="cl-grade-list-edit"></datalist>
+        <datalist id="cl-prof-list-edit"></datalist>
+        <datalist id="cl-setting-list-edit"></datalist>
+        <datalist id="cl-notes-list-edit"></datalist>
+        <div class="modal-actions">
+          <button class="btn" id="cl-ec-cancel">Cancel</button>
+          <button class="btn primary" id="cl-ec-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Route Modal -->
+    <div id="cl-edit-route-modal" class="modal-backdrop hidden">
+      <div class="modal-box">
+        <h2>Edit route</h2>
+        <div class="modal-row">
+          <div class="modal-field" style="flex:2;">
+            <label for="cl-er-name">Route name</label>
+            <input id="cl-er-name" type="text">
+          </div>
+          <div class="modal-field">
+            <label for="cl-er-grade">Grade</label>
+            <input id="cl-er-grade" type="text" list="cl-grade-list-edit">
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label for="cl-er-pitches">Pitches</label>
+            <input id="cl-er-pitches" type="number" min="0" step="any">
+          </div>
+          <div class="modal-field">
+            <label for="cl-er-style">Style</label>
+            <input id="cl-er-style" type="text" list="cl-style-list-edit">
+          </div>
+          <div class="modal-field" style="flex:2;">
+            <label for="cl-er-location">Location</label>
+            <input id="cl-er-location" type="text" list="cl-location-list-edit">
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-field" style="flex:2;">
+            <label for="cl-er-link">Link</label>
+            <input id="cl-er-link" type="text" list="cl-link-list-edit">
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label for="cl-er-notes">Route notes / description</label>
+            <input id="cl-er-notes" type="text" list="cl-rnotes-list-edit" style="width:100%">
+          </div>
+        </div>
+        <datalist id="cl-style-list-edit"></datalist>
+        <datalist id="cl-location-list-edit"></datalist>
+        <datalist id="cl-link-list-edit"></datalist>
+        <datalist id="cl-rnotes-list-edit"></datalist>
+        <div class="modal-actions">
+          <button class="btn" id="cl-er-cancel">Cancel</button>
+          <button class="btn primary" id="cl-er-save">Save</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<!-- =====================================================================
+  Run tool section — injected by the shell. Contains ONLY the run tool's
+  markup (add form, stats, charts, history, runs/shoes registries, edit
+  modals, in-section unit toggle). No shell-level ids, no <script>.
+  ===================================================================== -->
+<section class="tool hidden" id="tool-run">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+    <h2 style="margin:0;font-size:20px;">Run</h2>
+    <button class="unit-toggle" id="rn-unit-toggle" title="Switch between km and miles">Units: <span id="rn-unit-label">km</span></button>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-view="home">Home</button>
+    <button class="tab" data-view="history">History</button>
+    <button class="tab" data-view="runs">Runs</button>
+    <button class="tab" data-view="shoes">Shoes</button>
+  </nav>
+
+  <!-- HOME -->
+  <div class="view" id="rn-view-home">
+    <div class="card">
+      <h2>Add run</h2>
+      <form class="add-form" id="rn-add-form">
+        <div class="field">
+          <label for="rn-pick-run">Or pick an existing run</label>
+          <select id="rn-pick-run" style="width:200px">
+            <option value="">— select a run —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="rn-add-name">Run name</label>
+          <input id="rn-add-name" list="rn-run-list" placeholder="Lake Loop / 5k" autocomplete="off" required style="width:170px">
+        </div>
+        <div class="field">
+          <label for="rn-add-datetime">Date &amp; time</label>
+          <input id="rn-add-datetime" type="datetime-local" style="width:200px">
+        </div>
+        <div class="field">
+          <label for="rn-add-distance">Distance</label>
+          <input id="rn-add-distance" type="number" min="0" step="any" placeholder="5" style="width:80px" title="in your selected unit">
+        </div>
+        <div class="field">
+          <label>Duration</label>
+          <div style="display:flex;gap:4px;">
+            <input id="rn-add-dur-h" type="number" min="0" step="1" placeholder="0h" style="width:60px" title="hours">
+            <input id="rn-add-dur-m" type="number" min="0" max="59" step="1" placeholder="25m" style="width:60px" title="minutes">
+            <input id="rn-add-dur-s" type="number" min="0" max="59" step="1" placeholder="0s" style="width:60px" title="seconds">
+          </div>
+        </div>
+        <div class="field">
+          <label for="rn-add-elev">Elev gain</label>
+          <input id="rn-add-elev" type="number" step="any" placeholder="0" style="width:80px" title="in your selected unit">
+        </div>
+        <div class="field">
+          <label for="rn-add-location">Location</label>
+          <input id="rn-add-location" type="text" list="rn-location-list" placeholder="Park" style="width:120px">
+        </div>
+        <div class="field">
+          <label for="rn-add-surface">Surface</label>
+          <input id="rn-add-surface" type="text" list="rn-surface-list" placeholder="trail" style="width:90px">
+        </div>
+        <div class="field">
+          <label for="rn-add-shoes">Shoes</label>
+          <input id="rn-add-shoes" type="text" list="rn-shoes-list" placeholder="Pegasus 39" style="width:130px">
+        </div>
+        <div class="field">
+          <label for="rn-add-type">Workout type</label>
+          <input id="rn-add-type" type="text" list="rn-type-list" placeholder="easy run" style="width:110px">
+        </div>
+        <div class="field">
+          <label for="rn-add-effort">Effort (1-10)</label>
+          <input id="rn-add-effort" type="number" min="1" max="10" value="5" style="width:70px">
+        </div>
+        <div class="field">
+          <label for="rn-add-notes">Notes</label>
+          <input id="rn-add-notes" type="text" list="rn-notes-list" placeholder="felt strong" style="width:180px">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="submit" class="btn primary">Add run</button>
+        </div>
+      </form>
+      <datalist id="rn-run-list"></datalist>
+      <datalist id="rn-location-list"></datalist>
+      <datalist id="rn-surface-list"></datalist>
+      <datalist id="rn-shoes-list"></datalist>
+      <datalist id="rn-type-list"></datalist>
+      <datalist id="rn-notes-list"></datalist>
+      <p class="form-hint">
+        Picking a run auto-fills its distance, duration, location, surface, shoes, and workout type
+        (you can still override any of them). Distance, elevation, and pace display follow your
+        km/mi unit toggle. Effort is your perceived exertion, 1-10.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="summary">
+        <span class="big" id="rn-total-runs">0</span>
+        <span class="unit">runs</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="v" id="rn-stat-distance">0</div><div class="l">total distance</div></div>
+        <div class="stat-box"><div class="v" id="rn-stat-elev">0</div><div class="l">total climb</div></div>
+        <div class="stat-box"><div class="v" id="rn-stat-time">0h</div><div class="l">total time</div></div>
+        <div class="stat-box"><div class="v" id="rn-stat-avgpace">—</div><div class="l">avg pace</div></div>
+      </div>
+      <h2 style="margin-top:16px;">Recent runs</h2>
+      <div id="rn-recent-runs"><p class="no-data" style="padding:10px 0;">No runs yet.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Mileage over time</h2>
+      <div class="range-tabs" id="rn-mile-range"></div>
+      <div class="range-tabs" id="rn-mile-gran"></div>
+      <div class="chart-summary" id="rn-mile-summary"></div>
+      <div id="rn-mile-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Mileage per pair of shoes</h2>
+      <div class="range-tabs" id="rn-shoe-chart-range"></div>
+      <div class="range-tabs" id="rn-shoe-chart-gran"></div>
+      <div class="chart-summary" id="rn-shoe-chart-summary"></div>
+      <div id="rn-shoe-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Workouts by type</h2>
+      <div class="range-tabs" id="rn-type-range"></div>
+      <div class="range-tabs" id="rn-type-gran"></div>
+      <div class="chart-summary" id="rn-type-summary"></div>
+      <div id="rn-type-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Runs by surface</h2>
+      <div class="range-tabs" id="rn-surf-range"></div>
+      <div class="range-tabs" id="rn-surf-gran"></div>
+      <div class="chart-summary" id="rn-surf-summary"></div>
+      <div id="rn-surf-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Workouts by effort</h2>
+      <div class="range-tabs" id="rn-effort-range"></div>
+      <div class="range-tabs" id="rn-effort-gran"></div>
+      <div class="chart-summary" id="rn-effort-summary"></div>
+      <div id="rn-effort-chart"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="view hidden" id="rn-view-history">
+    <div class="card">
+      <h2>History</h2>
+      <div class="hist-filters">
+        <div class="field">
+          <label for="rn-hist-from">From</label>
+          <input type="date" id="rn-hist-from">
+        </div>
+        <div class="field">
+          <label for="rn-hist-to">To</label>
+          <input type="date" id="rn-hist-to">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn" id="rn-hist-apply" title="Filter the history to this date range">Apply</button>
+        </div>
+        <div class="hist-presets">
+          <button class="btn small hist-preset" data-preset="week">This week</button>
+          <button class="btn small hist-preset" data-preset="month">This month</button>
+          <button class="btn small hist-preset" data-preset="lastmonth">Last month</button>
+          <button class="btn small hist-preset" data-preset="year">Year to date</button>
+          <button class="btn small hist-preset" data-preset="all">All</button>
+        </div>
+      </div>
+      <p class="hist-summary" id="rn-hist-summary"></p>
+      <div id="rn-history-list"></div>
+    </div>
+  </div>
+
+  <!-- RUNS REGISTRY -->
+  <div class="view hidden" id="rn-view-runs">
+    <div class="card">
+      <h2>Runs</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
+        Runs are stored once. Editing a run here updates it everywhere it's used.
+        Click a run name to expand it and see every time you've done it.
+      </p>
+      <div id="rn-runs-table"></div>
+    </div>
+  </div>
+
+  <!-- SHOES -->
+  <div class="view hidden" id="rn-view-shoes">
+    <div class="card">
+      <h2>Shoes</h2>
+      <div class="add-form" style="margin-bottom:14px;">
+        <div class="field">
+          <label for="rn-shoe-name">Shoe name</label>
+          <input id="rn-shoe-name" type="text" placeholder="Pegasus 39" style="width:150px">
+        </div>
+        <div class="field">
+          <label for="rn-shoe-brand">Brand</label>
+          <input id="rn-shoe-brand" type="text" list="rn-brand-list" placeholder="Nike" style="width:110px">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn primary" id="rn-shoe-add-btn">Add shoe</button>
+        </div>
+      </div>
+      <datalist id="rn-brand-list"></datalist>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
+        Click a shoe to expand it and see the mileage logged in it.
+      </p>
+      <div id="rn-shoes-table"></div>
+    </div>
+  </div>
+
+  <!-- Edit Entry Modal -->
+  <div id="rn-edit-entry-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Edit run entry</h2>
+      <div class="modal-row">
+        <div class="modal-field" style="flex:2;">
+          <label for="rn-ee-run">Run</label>
+          <select id="rn-ee-run"></select>
+        </div>
+        <div class="modal-field">
+          <label for="rn-ee-datetime">Date &amp; time</label>
+          <input id="rn-ee-datetime" type="datetime-local">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="rn-ee-distance">Distance</label>
+          <input id="rn-ee-distance" type="number" min="0" step="any" title="in your selected unit">
+        </div>
+        <div class="modal-field">
+          <label>Duration</label>
+          <div style="display:flex;gap:4px;">
+            <input id="rn-ee-dur-h" type="number" min="0" step="1" placeholder="0h" style="width:60px" title="hours">
+            <input id="rn-ee-dur-m" type="number" min="0" max="59" step="1" placeholder="25m" style="width:60px" title="minutes">
+            <input id="rn-ee-dur-s" type="number" min="0" max="59" step="1" placeholder="0s" style="width:60px" title="seconds">
+          </div>
+        </div>
+        <div class="modal-field">
+          <label for="rn-ee-elev">Elev gain</label>
+          <input id="rn-ee-elev" type="number" step="any" title="in your selected unit">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="rn-ee-effort">Effort (1-10)</label>
+          <input id="rn-ee-effort" type="number" min="1" max="10">
+        </div>
+        <div class="modal-field" style="flex:2;">
+          <label for="rn-ee-notes">Notes</label>
+          <input id="rn-ee-notes" type="text">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="rn-ee-cancel">Cancel</button>
+        <button class="btn primary" id="rn-ee-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Run Modal -->
+  <div id="rn-edit-run-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Edit run</h2>
+      <div class="modal-row">
+        <div class="modal-field" style="flex:2;">
+          <label for="rn-er-name">Run name</label>
+          <input id="rn-er-name" type="text">
+        </div>
+        <div class="modal-field">
+          <label for="rn-er-location">Location</label>
+          <input id="rn-er-location" type="text" list="rn-location-list-edit">
+        </div>
+      </div>
+      <datalist id="rn-location-list-edit"></datalist>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="rn-er-surface">Surface</label>
+          <input id="rn-er-surface" type="text" list="rn-surface-list-edit">
+        </div>
+        <div class="modal-field">
+          <label for="rn-er-type">Workout type</label>
+          <input id="rn-er-type" type="text" list="rn-type-list-edit">
+        </div>
+      </div>
+      <datalist id="rn-surface-list-edit"></datalist>
+      <datalist id="rn-type-list-edit"></datalist>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="rn-er-distance">Distance</label>
+          <input id="rn-er-distance" type="number" min="0" step="any" title="in your selected unit">
+        </div>
+        <div class="modal-field">
+          <label>Duration</label>
+          <div style="display:flex;gap:4px;">
+            <input id="rn-er-dur-h" type="number" min="0" step="1" placeholder="0h" style="width:60px">
+            <input id="rn-er-dur-m" type="number" min="0" max="59" step="1" placeholder="25m" style="width:60px">
+            <input id="rn-er-dur-s" type="number" min="0" max="59" step="1" placeholder="0s" style="width:60px">
+          </div>
+        </div>
+        <div class="modal-field">
+          <label for="rn-er-elev">Elev gain</label>
+          <input id="rn-er-elev" type="number" step="any" title="in your selected unit">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="rn-er-shoes">Shoes</label>
+          <input id="rn-er-shoes" type="text" list="rn-shoes-list-edit">
+        </div>
+      </div>
+      <datalist id="rn-shoes-list-edit"></datalist>
+      <p class="modal-hint">Changing distance, duration, elevation, or shoes updates all entries logged for this run.</p>
+      <div class="modal-actions">
+        <button class="btn" id="rn-er-cancel">Cancel</button>
+        <button class="btn primary" id="rn-er-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- =====================================================================
+     Calorie tool section. Loaded by the shell into the main page.
+     Every id is prefixed "cal-"; no shell-level ids and no inline JS here.
+     ===================================================================== -->
+<section class="tool hidden" id="tool-calorie">
+
+  <nav class="tabs">
+    <button class="tab active" data-view="home">Today</button>
+    <button class="tab" data-view="history">History</button>
+    <button class="tab" data-view="foods">Foods</button>
+  </nav>
+
+  <!-- //////// HOME (Today + Charts) //////// -->
+  <div class="view" id="cal-view-home">
+
+    <div class="card">
+      <h2>Add food</h2>
+      <form class="add-form" id="cal-add-form">
+        <div class="field">
+          <label for="cal-pick-food">Or pick from your foods</label>
+          <select id="cal-pick-food" style="width:200px">
+            <option value="">— select a food —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cal-add-name">Food name</label>
+          <input id="cal-add-name" list="cal-food-list" placeholder="banana" autocomplete="off" required style="width:200px">
+        </div>
+        <div class="field">
+          <label for="cal-add-cal">Calories / serving</label>
+          <input id="cal-add-cal" type="number" min="0" step="any" placeholder="105" required style="width:110px">
+        </div>
+        <div class="field">
+          <label for="cal-add-protein">Protein (g)</label>
+          <input id="cal-add-protein" type="number" min="0" step="any" placeholder="—" style="width:90px">
+        </div>
+        <div class="field">
+          <label for="cal-add-carbs">Carbs (g)</label>
+          <input id="cal-add-carbs" type="number" min="0" step="any" placeholder="—" style="width:90px">
+        </div>
+        <div class="field">
+          <label for="cal-add-fat">Fat (g)</label>
+          <input id="cal-add-fat" type="number" min="0" step="any" placeholder="—" style="width:80px">
+        </div>
+        <div class="field">
+          <label for="cal-add-qty">Servings</label>
+          <input id="cal-add-qty" type="number" min="0.01" step="any" value="1" style="width:80px">
+        </div>
+        <div class="field">
+          <label for="cal-add-time">Time <em style="color:var(--muted);font-style:normal;">(auto)</em></label>
+          <input id="cal-add-time" type="time" style="width:120px">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="submit" class="btn primary">Add</button>
+        </div>
+      </form>
+      <datalist id="cal-food-list"></datalist>
+      <p class="form-hint">
+        The time field auto-fills with the current time — click into it if you want to change it.
+        Picking from the dropdown (or typing a name you've used before) reuses that food's stored calories/macros.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="summary">
+        <span class="big" id="cal-today-cal">0</span>
+        <span class="unit">calories today</span>
+      </div>
+      <p id="cal-today-date"></p>
+      <h2 style="margin-top:16px;">Today's entries</h2>
+      <div id="cal-today-entries"><p class="no-data" style="padding:10px 0;">No entries yet today.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Calories consumed</h2>
+      <div class="range-tabs" id="cal-cal-range"></div>
+      <div class="chart-summary" id="cal-cal-summary"></div>
+      <div id="cal-cal-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Foods eaten (times used)</h2>
+      <div class="range-tabs" id="cal-food-range"></div>
+      <div class="chart-summary" id="cal-food-summary"></div>
+      <div id="cal-food-chart"></div>
+    </div>
+  </div>
+
+  <!-- //////// HISTORY //////// -->
+  <div class="view hidden" id="cal-view-history">
+    <div class="card">
+      <h2>History</h2>
+      <div class="hist-filters">
+        <div class="field">
+          <label for="cal-hist-from">From</label>
+          <input type="date" id="cal-hist-from">
+        </div>
+        <div class="field">
+          <label for="cal-hist-to">To</label>
+          <input type="date" id="cal-hist-to">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn" id="cal-hist-apply" title="Filter the history to this date range">Apply</button>
+        </div>
+        <div class="hist-presets">
+          <button class="btn small hist-preset" data-preset="week">This week</button>
+          <button class="btn small hist-preset" data-preset="month">This month</button>
+          <button class="btn small hist-preset" data-preset="lastmonth">Last month</button>
+          <button class="btn small hist-preset" data-preset="year">Year to date</button>
+          <button class="btn small hist-preset" data-preset="all">All</button>
+        </div>
+      </div>
+      <p class="hist-summary" id="cal-hist-summary"></p>
+      <div id="cal-history-list"></div>
+    </div>
+  </div>
+
+  <!-- //////// FOODS registry //////// -->
+  <div class="view hidden" id="cal-view-foods">
+    <div class="card">
+      <h2>Foods</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
+        Foods are stored once. Editing a food here updates it everywhere it's used.
+      </p>
+      <div id="cal-foods-table"></div>
+    </div>
+  </div>
+
+  <!-- //////// Edit entry modal //////// -->
+  <div id="cal-edit-entry-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Edit entry</h2>
+      <div class="modal-row">
+        <div class="modal-field" style="flex:2;">
+          <label for="cal-ee-name">Food name</label>
+          <input id="cal-ee-name" type="text" list="cal-food-list-edit">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-cal">Calories / serving</label>
+          <input id="cal-ee-cal" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-qty">Servings</label>
+          <input id="cal-ee-qty" type="number" min="0.01" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-time">Time</label>
+          <input id="cal-ee-time" type="time">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="cal-ee-protein">Protein (g)</label>
+          <input id="cal-ee-protein" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-carbs">Carbs (g)</label>
+          <input id="cal-ee-carbs" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-fat">Fat (g)</label>
+          <input id="cal-ee-fat" type="number" min="0" step="any">
+        </div>
+      </div>
+      <datalist id="cal-food-list-edit"></datalist>
+      <div class="modal-actions">
+        <button class="btn" id="cal-ee-cancel">Cancel</button>
+        <button class="btn primary" id="cal-ee-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- //////// Edit food modal //////// -->
+  <div id="cal-edit-food-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Edit food</h2>
+      <div class="modal-row">
+        <div class="modal-field" style="flex:2;">
+          <label for="cal-ef-name">Food name</label>
+          <input id="cal-ef-name" type="text">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ef-cal">Calories / serving</label>
+          <input id="cal-ef-cal" type="number" min="0" step="any">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="cal-ef-protein">Protein (g)</label>
+          <input id="cal-ef-protein" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ef-carbs">Carbs (g)</label>
+          <input id="cal-ef-carbs" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ef-fat">Fat (g)</label>
+          <input id="cal-ef-fat" type="number" min="0" step="any">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="cal-ef-cancel">Cancel</button>
+        <button class="btn primary" id="cal-ef-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- //////// Add entry to date modal //////// -->
+  <div id="cal-add-entry-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Add entry</h2>
+      <div class="modal-row">
+        <div class="modal-field" style="flex:2;">
+          <label for="cal-ae-name">Food name</label>
+          <input id="cal-ae-name" type="text" list="cal-food-list-edit">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ae-date">Date</label>
+          <input id="cal-ae-date" type="date">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="cal-ae-cal">Calories / serving</label>
+          <input id="cal-ae-cal" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ae-qty">Servings</label>
+          <input id="cal-ae-qty" type="number" min="0.01" step="any" value="1">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ae-time">Time</label>
+          <input id="cal-ae-time" type="time">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="cal-ae-cancel">Cancel</button>
+        <button class="btn primary" id="cal-ae-save">Add</button>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+  <footer class="note">Data stays in your browser. Click "Save file" to download the updated JSON.</footer>
+</div>
+
+<script src="js/shared/util.js"></script>
+<script src="js/shared/charts.js"></script>
+<script src="js/shared/ui.js"></script>
+<script src="js/registry.js"></script>
+<script src="js/tools/climb.js"></script>
+<script src="js/tools/run.js"></script>
+<script src="js/tools/calorie.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

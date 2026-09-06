@@ -1,0 +1,65 @@
+/* =====================================================================
+   Fitness Tracker — tool-specific styles.
+
+   Climb: routes registry expandable rows + climb notes.
+   Run:    stacked-chart key legend, shoes registry, unit toggle.
+   Calorie: meal-ish list quirks.
+   ===================================================================== */
+
+/* ---------- Climb: routes registry ---------- */
+.route-toggle { cursor: pointer; font-weight: 600; }
+.route-toggle:hover { color: var(--accent-dark); }
+.chev { display: inline-block; width: 12px; color: var(--muted); }
+tr.route-row.open td { background: var(--accent-soft); }
+tr.route-detail td { background: var(--card); padding: 4px 10px 10px 30px; }
+tr.route-detail:hover td { background: var(--card); }
+.climb-notes { border-left: 2px solid var(--border); padding-left: 10px; }
+.climb-note { padding: 6px 8px; }
+.climb-note + .climb-note { border-top: 1px solid var(--border); }
+.climb-note-date { font-weight: 600; margin-right: 8px; }
+.climb-note-meta { color: var(--muted); font-size: 12px; margin-right: 8px; }
+.climb-note-text { font-size: 13px; }
+
+/* ---------- Run: unit toggle ---------- */
+.unit-toggle {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 20px;
+  background: var(--card); font-size: 13px; color: var(--muted);
+  user-select: none;
+}
+.unit-toggle:hover { color: var(--text); border-color: var(--accent); }
+.unit-toggle.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---------- Run: stacked chart key ---------- */
+.chart-key { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.chart-key .key-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.chart-key .key-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* ---------- Run / Calorie: registry/table extras ---------- */
+
+/* Run home stat grid */
+.stat-grid { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px; }
+.stat-box {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 14px; min-width: 110px; background: var(--card);
+}
+.stat-box .v { font-size: 18px; font-weight: 700; }
+.stat-box .l { font-size: 12px; color: var(--muted); }
+
+/* Shared registry expandable rows (runs, shoes) */
+.reg-row.open td { background: var(--accent-soft); }
+.reg-toggle { cursor: pointer; font-weight: 600; }
+.reg-toggle:hover { color: var(--accent-dark); }
+.reg-detail td { background: var(--card); padding: 4px 10px 10px 30px; }
+.reg-detail:hover td { background: var(--card); }
+.reg-notes { border-left: 2px solid var(--border); padding-left: 10px; }
+.reg-note { padding: 6px 8px; }
+.reg-note + .reg-note { border-top: 1px solid var(--border); }
+.reg-note-date { font-weight: 600; margin-right: 8px; }
+.reg-note-meta { color: var(--muted); font-size: 12px; margin-right: 8px; }
+.reg-note-text { font-size: 13px; }
+.note-cell { max-width: 260px; }
+
+/* ---------- Calorie: tag chips ---------- */
+.tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); }
