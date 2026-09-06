@@ -96,6 +96,14 @@ if (openItem) openItem.addEventListener("click", () => {
   const fi = document.getElementById("file-input");
   if (fi) fi.click();
 });
+document.getElementById("load-item").addEventListener("click", () => {
+  const fi = document.getElementById("file-input");
+  if (fi) fi.value = "";
+  const err = document.getElementById("load-err");
+  if (err) err.textContent = "";
+  document.getElementById("load-screen").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden");
+});
 
 /* ---------------------- Load screen ---------------------- */
 const fileInput = document.getElementById("file-input");
