@@ -63,3 +63,10 @@ tr.route-detail:hover td { background: var(--card); }
 /* ---------- Calorie: tag chips ---------- */
 .tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
 .tag-chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); }
+/* ---------- Import (temp) ---------- */
+#import-import h2 { font-size: 20px; margin: 0 0 6px; }
+.loaded { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; font-size: 14px; margin-top: 10px; }
+.loaded .clear { float: right; cursor: pointer; color: var(--danger); font-size: 13px; }
+.loaded-fname { font-weight: 600; }
+.loaded-detail { color: var(--muted); font-size: 13px; margin-top: 2px; }
+#imp-merge:disabled { opacity: .5; cursor: not-allowed; }

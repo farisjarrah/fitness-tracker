@@ -906,6 +906,43 @@
 
 </section>
 
+  <!-- ================= IMPORT (TEMP) ================= -->
+  <section class="tool hidden" id="tool-import">
+    <h2 style="margin:0 0 6px;font-size:20px;">📥 Import your 3 data files</h2>
+    <p class="intro" style="color:var(--muted);margin:0 0 16px;">
+      One-time helper: load your old <code>calorie-data.json</code>, <code>run-data.json</code>
+      and <code>climb-data.json</code>. They're detected automatically — pick them one at a time
+      or select several at once. Then tap <strong>Merge &amp; download</strong>.
+    </p>
+
+    <div class="load-box" style="text-align:left;">
+      <p style="margin:0 0 14px;color:var(--muted);font-size:14px;">🧗 Climbing — expects <code>routes</code> + <code>climbs</code></p>
+      <label class="drop" data-slot="climb">
+        <input type="file" accept=".json,application/json" multiple>
+        <strong>Click to choose</strong> or drop your climb file here
+      </label>
+      <div class="loaded hidden" data-status="climb"></div>
+
+      <p style="margin:18px 0 14px;color:var(--muted);font-size:14px;">🏃 Running — expects <code>runs</code> + <code>entries</code></p>
+      <label class="drop" data-slot="run">
+        <input type="file" accept=".json,application/json" multiple>
+        <strong>Click to choose</strong> or drop your run file here
+      </label>
+      <div class="loaded hidden" data-status="run"></div>
+
+      <p style="margin:18px 0 14px;color:var(--muted);font-size:14px;">🍎 Calories — expects <code>foods</code> + <code>entries</code></p>
+      <label class="drop" data-slot="calorie">
+        <input type="file" accept=".json,application/json" multiple>
+        <strong>Click to choose</strong> or drop your calorie file here
+      </label>
+      <div class="loaded hidden" data-status="calorie"></div>
+
+      <div id="imp-err" style="color:var(--danger);min-height:18px;font-size:14px;margin-top:12px;"></div>
+      <button class="btn primary" id="imp-merge" disabled>Merge &amp; download fitness-data.json</button>
+      <span id="imp-msg" style="margin-left:12px;color:var(--muted);font-size:13px;"></span>
+    </div>
+  </section>
+
   <footer class="note">Data stays in your browser. Click "Save file" to download the updated JSON.</footer>
 </div>
 
@@ -916,6 +953,7 @@
 <script src="js/tools/calorie.js"></script>
 <script src="js/tools/run.js"></script>
 <script src="js/tools/climb.js"></script>
+<script src="js/import.js"></script>
 <script src="js/main.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol === "https:") {
