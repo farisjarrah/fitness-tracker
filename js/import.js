@@ -35,7 +35,7 @@ function impShowStatus(tool, name, raw) {
 
 function impRefresh() {
   const n = ["climb", "run", "calorie"].filter(t => IMP_DATA[t]).length;
-  document.getElementById("imp-msg").textContent = n === 0 ? "" : n + " of 3 loaded.";
+  document.getElementById("imp-msg").textContent = n === 0 ? "Load at least one file above, then tap merge." : n + " of 3 loaded.";
   document.getElementById("imp-merge").disabled = n === 0;
 }
 
@@ -83,15 +83,6 @@ document.getElementById("imp-merge").addEventListener("click", () => {
     climb: IMP_DATA.climb || { routes: {}, climbs: [] }
   };
 
-  for (const tool of TOOLS) {
-    if (tool.id in merged) applyToolData(tool.id, merged[tool.id]);
-  }
-  filename = "fitness-data.json";
-  backupDB();
-  refreshAll();
-  showTool("import");
-  document.getElementById("imp-msg").textContent = "Merged into this session — browse the tabs above. ✅";
-
   const blob = new Blob([JSON.stringify(merged, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -99,6 +90,19 @@ document.getElementById("imp-merge").addEventListener("click", () => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  document.getElementById("imp-msg").textContent = "Downloaded fitness-data.json 📄";
+
+  try {
+    for (const tool of TOOLS) {
+      if (tool.id in merged) applyToolData(tool.id, merged[tool.id]);
+    }
+    filename = "fitness-data.json";
+    backupDB();
+    refreshAll();
+    document.getElementById("imp-msg").textContent = "Merged into this session — browse the tabs above. ✅";
+  } catch (err) {
+    document.getElementById("imp-err").textContent = "File downloaded, but showing it in this session failed: " + err.message;
+  }
 });
 
 /* Temp 5th page: insert the Import button after the generated tool buttons */
