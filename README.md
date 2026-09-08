@@ -1,5 +1,5 @@
 # fitness-tracker
-Calorie, run and climbing trackers merged into one page. Saves data locally / personal iCloud. No ads, no tracking, no external dependencies — just static files you can host anywhere (or open straight from disk).
+Calorie, run and climbing trackers. Saves data locally / personal iCloud. No ads, no tracking, no external dependencies — just static files you can host anywhere (or open straight from disk).
 
 ## What it is
 
@@ -28,9 +28,7 @@ anywhere.
 
 ### Your data file
 
-The default data filename is **`fitness-data.json`** (opens `calorie-data.json`,
-`run-data.json` and `climb-data.json` from the old apps too, and merges them — see *Importing
-the old apps* below).
+The default data filename is **`fitness-data.json`
 
 **Open file → track → save file back.** Because browsers can't write to a folder by
 themselves, the flow is: pick `fitness-data.json` when you open the app, make your entries,
@@ -61,14 +59,6 @@ Other filesystem integrations (Google Drive, etc.) probably work too, but are un
 
 The **☰ menu** (top right) has: **Save backup file…** (download the JSON), **Open a data
 file…** (load a different JSON, e.g. one saved on another device), and **New file**.
-
-### Importing the old apps (one-time)
-Have data in the old single-file trackers? Keep your `calorie-data.json`, `run-data.json`
-and `climb-data.json`. Open the temporary page at the repo's `import.html` (or locally), pick
-each of the three old files (or just the ones you have), and it produces a `fitness-data.json`
-containing all of them. Download that and use it from now on. You can also just open one old
-file directly in the main app — it's detected and converted automatically; the import page
-is only needed to *merge* several files into one.
 
 ### Install as an app (PWA)
 Works as a normal website, or install it to your home screen for a full app experience:
