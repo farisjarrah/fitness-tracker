@@ -44,7 +44,7 @@
   <!-- OVERVIEW -->
   <section class="tool" id="tool-overview">
     <div class="card">
-      <h2>Totals</h2>
+      <h2>Highlights</h2>
       <div id="ov-stats"></div>
     </div>
     <div class="card">
@@ -344,7 +344,7 @@
         </div>
 
         <div class="card">
-          <h2>Daily targets</h2>
+          <h2>Nutrition targets</h2>
           <div class="field">
             <label for="ht-calories">Calories</label>
             <input id="ht-calories" type="number" min="0" step="any" placeholder="2400" style="width:100px">
@@ -373,6 +373,10 @@
               <option value="l">L</option>
             </select>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>Running target</h2>
           <div class="field">
             <label for="ht-mileage">Weekly running</label>
             <input id="ht-mileage" type="number" min="0" step="any" placeholder="40" style="width:100px">
@@ -382,21 +386,28 @@
             </select>
             <span class="unit">/ week</span>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>Climbing targets</h2>
           <div class="field">
-            <label for="ht-cl-boulder">Climbs · bouldering</label>
+            <label for="ht-cl-boulder">Bouldering</label>
             <input id="ht-cl-boulder" type="number" min="0" step="1" placeholder="2" style="width:70px">
             <span class="unit">/ week</span>
           </div>
           <div class="field">
-            <label for="ht-cl-toprope">Climbs · top rope</label>
+            <label for="ht-cl-toprope">Top rope</label>
             <input id="ht-cl-toprope" type="number" min="0" step="1" placeholder="1" style="width:70px">
             <span class="unit">/ week</span>
           </div>
           <div class="field">
-            <label for="ht-cl-lead">Climbs · lead</label>
+            <label for="ht-cl-lead">Lead</label>
             <input id="ht-cl-lead" type="number" min="0" step="1" placeholder="1" style="width:70px">
             <span class="unit">/ week</span>
           </div>
+        </div>
+
+        <div class="card">
           <div class="field">
             <label>&nbsp;</label>
             <button type="submit" class="btn primary">Save settings</button>
@@ -405,7 +416,7 @@
       </form>
       <p class="form-hint" style="padding:0 4px 4px;">
         All values are optional and can stay empty. Height and targets are read by the
-        Overview, Calorie (target lines) and Run (weekly-mileage target) tools.
+        Overview, Calorie (target lines), Run (weekly-mileage target) and Climbing tools.
       </p>
     </div>
 
@@ -417,6 +428,10 @@
           <div class="field">
             <label for="ht-w-date">Date</label>
             <input id="ht-w-date" type="date" style="width:140px">
+          </div>
+          <div class="field">
+            <label for="ht-w-time">Time</label>
+            <input id="ht-w-time" type="time" style="width:140px">
           </div>
           <div class="field">
             <label for="ht-w-value">Weight</label>

@@ -116,16 +116,17 @@
     });
   }
   function sortedWeight() {
-    return D.weight.slice().sort((a, b) => a.date.localeCompare(b.date));
+    return D.weight.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "") || a.id - b.id);
   }
   function addWeight() {
     const date = $("w-date").value || todayISO();
+    const time = $("w-time").value || "";
     const v = numOrNull($("w-value").value);
     if (v == null) return;
     const unit = $("w-unit").value === "lb" ? "lb" : "kg";
     let maxId = 0;
     for (const w of D.weight) if (w.id > maxId) maxId = w.id;
-    D.weight.push({ id: ++maxId, date, kg: Math.round((unit === "lb" ? v / 2.20462 : v) * 10) / 10 });
+    D.weight.push({ id: ++maxId, date, time, kg: Math.round((unit === "lb" ? v / 2.20462 : v) * 10) / 10 });
     $("w-value").value = "";
     refreshAll();
   }
@@ -165,7 +166,7 @@
 
     const weightW = weightUnit();
     renderLineChart("ht-w-chart", "ht-w-summary", series, {
-      xFormat: i => (log[i] ? log[i].date.slice(5).replace("-", "/") : ""),
+      xFormat: i => (log[i] ? log[i].date.slice(5).replace("-", "/") + (log[i].time ? " " + log[i].time.slice(0, 5) : "") : ""),
       yFormat: v => Number(v).toFixed(1) + " " + weightW,
       summary: sumTxt
     });
@@ -187,13 +188,14 @@
         : (dKg >= 0 ? "+" : "−") + Math.abs(Number(kgToW(dKg).toFixed(1))) + " " + weightUnit();
       rows.push(`<tr>
         <td>${fmtDate(w.date)}</td>
+        <td>${w.time ? w.time.slice(0, 5) : "—"}</td>
         <td class="num">${weightDisplay(w.kg)}</td>
         <td class="num ht-delta">${dTxt || "—"}</td>
         <td class="num"><button class="btn small danger" onclick="ht_delWeight(${w.id})">Delete</button></td>
       </tr>`);
     }
     box.innerHTML = `<table>
-      <thead><tr><th>Date</th><th class="num">Weight</th><th class="num">Δ</th><th></th></tr></thead>
+      <thead><tr><th>Date</th><th>Time</th><th class="num">Weight</th><th class="num">Δ</th><th></th></tr></thead>
       <tbody>${rows.join("")}</tbody>
     </table>`;
   }
@@ -222,6 +224,7 @@
           db.weight.push({
             id: parseInt(w.id, 10) || (++maxId),
             date: String(w.date || todayISO()),
+            time: String(w.time || ""),
             kg: Math.round(kg * 10) / 10
           });
         }
@@ -256,7 +259,12 @@
         const d = new Date();
         d.setDate(d.getDate() - ago);
         const base = 80 + ago * 0.04;
-        db.weight.push({ id: ++id, date: toISO(d), kg: Math.round((base + (ago % 3) * 0.3) * 10) / 10 });
+        db.weight.push({
+          id: ++id,
+          date: toISO(d),
+          time: (ago % 42 === 0 ? "18:30" : "07:30"),
+          kg: Math.round((base + (ago % 3) * 0.3) * 10) / 10
+        });
       }
       return db;
     },
@@ -266,6 +274,8 @@
       $("settings-form").addEventListener("submit", e => { e.preventDefault(); saveSettings(); });
       $("add-weight").addEventListener("submit", e => { e.preventDefault(); addWeight(); });
       $("w-date").value = todayISO();
+      const now = new Date();
+      $("w-time").value = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
 
       wireUnitSwitch("height-unit", "fit-height-unit", "height");
       wireUnitSwitch("water-unit", "fit-water-unit", "water");
@@ -274,6 +284,8 @@
     reset() {
       $("w-value").value = "";
       $("w-date").value = todayISO();
+      const now = new Date();
+      $("w-time").value = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
     },
     render() {
       if (settingsSignature() !== lastSettingsSig) {

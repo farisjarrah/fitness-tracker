@@ -686,10 +686,11 @@
     summary() {
       const routeCount = Object.keys(D.routes).length;
       const last = D.climbs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+      const lastR = last && D.routes[last.routeId];
       return [
         { label: "climbs", value: D.climbs.length },
         { label: "routes", value: routeCount },
-        { label: "last climb", value: last && D.routes[last.routeId] ? `${D.routes[last.routeId].grade || "?"} · ${fmtDate(last.date)}` : "—" }
+        { label: "last climb", value: lastR ? `${lastR.name || "?"} · ${lastR.grade || "?"} · ${fmtDate(last.date)}` : "—" }
       ];
     },
     recent(limit) {
