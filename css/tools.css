@@ -35,6 +35,17 @@ tr.route-detail:hover td { background: var(--card); }
 .chart-key .key-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
 .chart-key .key-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
+/* ---------- Run: multi-shoe rows ---------- */
+.shoe-rows { display: flex; flex-direction: column; gap: 4px; }
+.shoe-rows .shoe-row { display: flex; gap: 4px; align-items: center; }
+.shoe-rows .shoe-row input[type="text"] { width: 130px; }
+.shoe-rows .shoe-row input[type="number"] { width: 70px; }
+.shoe-row-remove {
+  border: 1px solid transparent; background: none; cursor: pointer;
+  color: var(--muted); font-size: 15px; line-height: 1; padding: 4px 6px; border-radius: 4px;
+}
+.shoe-row-remove:hover { color: var(--danger); background: rgba(220,38,38,.1); }
+
 /* ---------- Run / Calorie: registry/table extras ---------- */
 
 /* Run home stat grid */
@@ -63,10 +74,11 @@ tr.route-detail:hover td { background: var(--card); }
 /* ---------- Calorie: tag chips ---------- */
 .tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
 .tag-chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); }
-/* ---------- Import (temp) ---------- */
-#import-import h2 { font-size: 20px; margin: 0 0 6px; }
-.loaded { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; font-size: 14px; margin-top: 10px; }
-.loaded .clear { float: right; cursor: pointer; color: var(--danger); font-size: 13px; }
-.loaded-fname { font-weight: 600; }
-.loaded-detail { color: var(--muted); font-size: 13px; margin-top: 2px; }
-#imp-merge:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------- Calorie: cheat day ---------- */
+.cheat-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; margin-top: 8px; }
+.cheat-toggle input { width: auto; }
+.cheat-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; background: rgba(220,38,38,.15); color: var(--danger); font-size: 11px; font-weight: 600; }
+
+/* ---------- Health ---------- */
+.ht-delta { color: var(--muted); font-weight: 600; }

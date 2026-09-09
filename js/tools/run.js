@@ -18,6 +18,7 @@
 
   /* -------- Tool-local state -------- */
   let unit = "metric";
+  let statRange = "week";
   let mileRange = "30d";
   let mileGran = "week";
   let shoeRange = "30d";
@@ -33,6 +34,7 @@
   let selectedDate = null;
   const expandedRuns = new Set();
   const expandedShoes = new Set();
+  let routeFilter = { location: "", surface: "", type: "" };
 
   const RANGES = ["week", "7d", "30d", "year", "all"];
   const RANGE_LABEL = { week: "This week", "7d": "Last 7 days", "30d": "Last 30 days", year: "This year", all: "All time" };
@@ -110,6 +112,70 @@
     return id;
   }
 
+  /* -------- Multi-shoe add rows -------- */
+  function shoeRowHTML(opts) {
+    opts = opts || {};
+    return `<div class="shoe-row">
+      <input type="text" list="rn-shoes-list" class="rn-shoe-inp" placeholder="Pegasus 39" value="${esc(opts.name || "")}" autocomplete="off">
+      <input type="number" min="0" step="any" class="rn-shoe-dist" placeholder="${distLabel()}" value="${opts.dist != null ? opts.dist : ""}" title="miles for this shoe in your selected unit">
+      <button type="button" class="shoe-row-remove" title="Remove shoe">✕</button>
+    </div>`;
+  }
+
+  function resetShoeRows(rows) {
+    const box = $("add-shoe-rows");
+    box.innerHTML = "";
+    const n = Math.max(1, (rows && rows.length) || 1);
+    for (let i = 0; i < n; i++) {
+      box.insertAdjacentHTML("beforeend", shoeRowHTML(rows && rows[i]));
+    }
+    wireShoeRowEvents(box);
+  }
+
+  function wireShoeRowEvents(box) {
+    box.querySelectorAll(".shoe-row-remove").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest(".shoe-row");
+        if (row) row.remove();
+        if (box.querySelectorAll(".shoe-row").length === 0) {
+          box.insertAdjacentHTML("beforeend", shoeRowHTML());
+          wireShoeRowEvents(box);
+        }
+      });
+    });
+  }
+
+  /* Returns [{name, distM}] from the add-form shoe rows. */
+  function collectShoeRows() {
+    const out = [];
+    for (const row of $("add-shoe-rows").querySelectorAll(".shoe-row")) {
+      const name = row.querySelector(".rn-shoe-inp").value.trim();
+      const distNum = parseFloat(row.querySelector(".rn-shoe-dist").value);
+      if (!name) continue;
+      out.push({ name, distM: distNum > 0 ? numToM(distNum) : null });
+    }
+    return out;
+  }
+
+  /* Assigns shoe mileage for an entry. When a single shoe has no distance,
+     fall back to the full entry distance (backward-compatible behavior). */
+  function shoeMileageForRows(rows, fallbackM) {
+    const map = {};
+    let named = 0, withDist = 0;
+    for (const r of rows) {
+      if (!r.name) continue;
+      named++;
+      if (r.distM == null) continue;
+      withDist++;
+      map[shoeIdForName(r.name)] = r.distM;
+    }
+    if (named === 1 && withDist === 0) {
+      const sid = shoeIdForName(rows[0].name);
+      if (fallbackM > 0) map[sid] = fallbackM;
+    }
+    return map;
+  }
+
   /* -------- Datalists -------- */
   function renderSuggestionLists() {
     const locs = [], surfs = [], types = [], notes = [], brands = [];
@@ -131,7 +197,21 @@
     fillList("rn-notes-list", uniqueValues(notes));
     fillList("rn-brand-list", uniqueValues(brands));
     fillList("rn-shoes-list", uniqueValues(Object.values(D.shoes).map(s => s.name)));
+    renderRouteFilters(locs, surfs, types);
     syncEditDatalists();
+  }
+
+  function renderRouteFilters(locs, surfs, types) {
+    const sel = (id, values) => {
+      const s = document.getElementById(id);
+      if (!s) return;
+      const cur = s.value;
+      s.innerHTML = '<option value="">All</option>' +
+        values.map(v => `<option value="${esc(v)}"${cur === v ? " selected" : ""}>${esc(v)}</option>`).join("");
+    };
+    sel("rn-filter-location", uniqueValues(locs));
+    sel("rn-filter-surface", uniqueValues([...SURFACE_SUGGESTIONS, ...(surfs || [])]));
+    sel("rn-filter-type", uniqueValues([...TYPE_SUGGESTIONS, ...(types || [])]));
   }
 
   function syncEditDatalists() {
@@ -170,21 +250,25 @@
     if (e.distanceM > 0 && e.durationS > 0) return e.durationS / e.distanceM;
     return null;
   }
-  function formulaPace() {
-    let totalM = 0, totalS = 0;
-    for (const e of D.entries) { totalM += e.distanceM || 0; totalS += e.durationS || 0; }
-    return totalM > 0 ? { m: totalM, s: totalS, pace: totalS / totalM } : null;
-  }
 
   function renderHome() {
-    $("total-runs").textContent = D.entries.length;
+    const bounds = rangeBounds(statRange);
+    const inRange = e => {
+      const d = (e.datetime || "").slice(0, 10);
+      return d >= bounds.from && d <= bounds.to;
+    };
+    const period = D.entries.filter(inRange);
+    const isAll = statRange === "all";
+    $("total-runs").textContent = period.length;
+    $("total-runs-label").textContent = isAll ? "runs" : `runs · ${RANGE_LABEL[statRange]}`;
     let totalM = 0, totalS = 0, totalElev = 0;
-    for (const e of D.entries) { totalM += e.distanceM || 0; totalS += e.durationS || 0; totalElev += e.elevGainM || 0; }
+    for (const e of period) { totalM += e.distanceM || 0; totalS += e.durationS || 0; totalElev += e.elevGainM || 0; }
     $("stat-distance").textContent = fmtDist(totalM, 2) + " " + distLabel();
+    $("stat-distance-label").textContent = isAll ? "total distance" : `distance · ${RANGE_LABEL[statRange]}`;
     $("stat-elev").textContent = Math.round(eleMToNum(totalElev)) + " " + elevLabel();
     $("stat-time").textContent = fmtHours(totalS);
-    const ap = formulaPace();
-    $("stat-avgpace").textContent = ap ? fmtPace(ap.pace) + " /" + distLabel() : "—";
+    const ap = period.length ? formulaPaceFor(period) : null;
+    $("stat-avgpace").textContent = ap != null ? fmtPace(ap) + " /" + distLabel() : "—";
 
     const box = $("recent-runs");
     if (D.entries.length === 0) {
@@ -193,6 +277,7 @@
       const last = D.entries.slice().sort((a, b) => (b.datetime || "").localeCompare(a.datetime || "")).slice(0, 10);
       box.innerHTML = runsTable(last);
     }
+    syncRangeTabs("rn-stat-range", statRange);
   }
 
   function runsTable(entries) {
@@ -207,6 +292,7 @@
   function runsRow(e) {
     const r = D.runs[e.runId];
     const pace = entryPace(e);
+    const shoesText = entryShoesText(e);
     return `<tr>
       <td>${fmtDate(e.datetime)}${e.datetime && e.datetime.length > 10 ? "<span class='mutednote'> " + esc(e.datetime.slice(11, 16)) + "</span>" : ""}</td>
       <td>${esc(r ? r.name : "—")}</td>
@@ -215,7 +301,7 @@
       <td class="num">${pace ? fmtPace(pace) + " /" + distLabel() : "—"}</td>
       <td class="num">${e.elevGainM ? "+" + Math.round(eleMToNum(e.elevGainM)) : "—"} ${e.elevGainM ? elevLabel() : ""}</td>
       <td>${esc(r ? (r.surface || "") : "")}</td>
-      <td>${shoeById(r ? r.shoesId : "") ? esc(shoeById(r.shoesId).name) : ""}</td>
+      <td>${shoesText}</td>
       <td>${esc(r ? (r.workoutType || "") : "")}</td>
       <td class="num">${e.effort ?? "—"}</td>
       <td>${esc(e.notes || "")}</td>
@@ -224,6 +310,18 @@
         <button class="btn small danger" onclick="rn_delEntry(${e.id})">Del</button>
       </div></td>
     </tr>`;
+  }
+
+  /* Builds a shoe display string from an entry's shoe mileage map,
+     falling back to the run template's primary shoe. */
+  function entryShoesText(e) {
+    const sm = e.shoeMileage || {};
+    const parts = Object.keys(sm).filter(id => (sm[id] || 0) > 0)
+      .map(id => `${esc(shoeById(id) ? shoeById(id).name : "(unknown shoe)")}${sm[id] ? " " + fmtDist(sm[id], 1) : ""}`);
+    if (parts.length) return parts.join(", ");
+    const r = D.runs[e.runId];
+    if (r && r.shoesId && shoeById(r.shoesId)) return esc(shoeById(r.shoesId).name);
+    return "";
   }
 
   window.rn_delEntry = function (id) {
@@ -271,13 +369,13 @@
     const datetime = $("add-datetime").value || new Date().toISOString().slice(0, 16);
     const location = $("add-location").value.trim();
     const surface = $("add-surface").value.trim().toLowerCase();
-    const shoeName = $("add-shoes").value.trim();
     const workoutType = $("add-type").value.trim();
     const effort = clamp10($("add-effort").value);
     const notes = $("add-notes").value.trim();
 
+    const shoeRows = collectShoeRows();
     let shoesId = "";
-    if (shoeName) shoesId = shoeIdForName(shoeName);
+    if (shoeRows.length) shoesId = shoeIdForName(shoeRows[0].name);
 
     const match = findMatchingRun(name);
     let runId;
@@ -303,10 +401,12 @@
       durationS: durationS,
       elevGainM: elevGainM,
       effort: effort,
-      notes: notes
+      notes: notes,
+      shoeMileage: shoeMileageForRows(shoeRows, distanceM)
     });
 
-    ["add-name", "add-distance", "add-dur-h", "add-dur-m", "add-dur-s", "add-elev", "add-datetime", "add-location", "add-surface", "add-shoes", "add-type", "add-notes"].forEach(id => $(id).value = "");
+    ["add-name", "add-distance", "add-dur-h", "add-dur-m", "add-dur-s", "add-elev", "add-datetime", "add-location", "add-surface", "add-type", "add-notes"].forEach(id => $(id).value = "");
+    resetShoeRows();
     refreshAll();
   }
 
@@ -373,54 +473,111 @@
   }
 
   function renderMileageOverTime() {
+    const bounds = rangeBounds(mileRange);
     const map = bucketByTime(mileRange, D.entries, mileGran);
-    const pairs = [];
-    for (const k in map) {
-      const tot = map[k].reduce((s, e) => s + (e.distanceM || 0), 0);
-      pairs.push([k, mToNum(tot)]);
-    }
-    pairs.sort((a, b) => a[0].localeCompare(b[0]));
+    const keys = Object.keys(map).sort();
     const unitL = distLabel();
+    if (keys.length === 0) {
+      renderLineChart("rn-mile-chart", "rn-mile-summary", [], { summary: "No runs in this range." });
+      syncRangeTabs("rn-mile-range", mileRange);
+      syncRangeTabs("rn-mile-gran", mileGran);
+      return;
+    }
     const labelFn = mileGran === "week" ? (k => "w/o " + k.slice(5)) : (mileGran === "month" ? (k => MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1]) : (k => k.slice(5)));
-    resetPalette();
-    renderBarChart("rn-mile-chart", "rn-mile-summary", pairs,
-      v => v.toFixed(2) + " " + unitL, labelFn,
-      `${RANGE_LABEL[mileRange]} · ${GRAN_LABEL[mileGran]}: ${pairs.reduce((s, p) => s + p[1], 0).toFixed(2)} ${unitL}`,
-      (k, i) => PALETTE[i % PALETTE.length]);
+    let cum = 0;
+    const points = [];
+    for (let i = 0; i < keys.length; i++) {
+      const tot = map[keys[i]].reduce((s, e) => s + (e.distanceM || 0), 0);
+      cum += tot;
+      points.push([i, mToNum(cum)]);
+    }
+    const series = [{ label: "cumulative " + distLabel(), color: "var(--accent)", points }];
+    let summary = `${RANGE_LABEL[mileRange]} · ${GRAN_LABEL[mileGran]}: ${mToNum(cum).toFixed(2)} ${unitL} cumulative`;
+    const wkTgtM = (window.DB.health && window.DB.health.targets) ? (Number(window.DB.health.targets.weeklyMileageM) || 0) : 0;
+    if (wkTgtM > 0) {
+      const wkTgt = mToNum(wkTgtM);
+      const perBucket = mileGran === "week" ? 1 : (mileGran === "month" ? 4.345 : 1 / 7);
+      const tgtTotal = wkTgtM * perBucket * keys.length;
+      series.push({
+        label: "target",
+        color: "var(--danger)",
+        dashed: true,
+        points: [[0, 0], [keys.length - 1, mToNum(tgtTotal)]]
+      });
+      summary += ` · weekly target ${fmtDist(wkTgtM, 1)} ${unitL}`;
+    }
+    renderLineChart("rn-mile-chart", "rn-mile-summary", series, {
+      xFormat: labelFn,
+      yFormat: v => v.toFixed(1) + " " + unitL,
+      summary
+    });
     syncRangeTabs("rn-mile-range", mileRange);
     syncRangeTabs("rn-mile-gran", mileGran);
   }
 
   function renderShoeChart() {
     const source = bucketByTime(shoeRange, D.entries, shoeGran);
-    const buckets = {};
-    const shoeTotals = {};
-    let totalNum = 0;
-    for (const k in source) {
-      for (const e of source[k]) {
-        const r = D.runs[e.runId];
-        let shoeName = "(no shoes)";
-        if (r && r.shoesId && D.shoes[r.shoesId]) {
-          shoeName = D.shoes[r.shoesId].name;
-        } else if (r && r.shoesId) {
-          shoeName = "(unknown shoe)";
+    const keys = Object.keys(source).sort();
+    const unitL = distLabel();
+    if (keys.length === 0) {
+      renderLineChart("rn-shoe-chart", "rn-shoe-chart-summary", [], { summary: "No runs in this range." });
+      syncRangeTabs("rn-shoe-chart-range", shoeRange);
+      syncRangeTabs("rn-shoe-chart-gran", shoeGran);
+      return;
+    }
+    const labelFn = shoeGran === "week" ? (k => "w/o " + k.slice(5)) : (shoeGran === "month" ? (k => MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1]) : (k => k.slice(5)));
+    // per-shoe cumulative series (meters accumulated per bucket index)
+    const shoeTot = {};
+    const shoeCum = {};
+    let grandTotal = 0;
+    resetPalette();
+    for (let i = 0; i < keys.length; i++) {
+      for (const e of (source[keys[i]] || [])) {
+        const m = entryShoeMileageMap(e);
+        for (const sid in m) {
+          const v = m[sid];
+          if (v <= 0) continue;
+          shoeTot[sid] = (shoeTot[sid] || 0) + v;
+          grandTotal += v;
         }
-        const v = mToNum(e.distanceM || 0);
-        totalNum += v;
-        buckets[k] = buckets[k] || {};
-        buckets[k][shoeName] = (buckets[k][shoeName] || 0) + v;
-        shoeTotals[shoeName] = (shoeTotals[shoeName] || 0) + v;
+      }
+      for (const sid in shoeTot) {
+        (shoeCum[sid] = shoeCum[sid] || [])[i] = mToNum(shoeTot[sid]);
       }
     }
-    const shoeOrder = Object.keys(shoeTotals).sort((a, b) => shoeTotals[b] - shoeTotals[a]);
-    const unitL = distLabel();
-    const labelFn = shoeGran === "week" ? (k => "w/o " + k.slice(5)) : (shoeGran === "month" ? (k => MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1]) : (k => k.slice(5)));
-    resetPalette();
-    renderStackedChart("rn-shoe-chart", "rn-shoe-chart-summary", buckets, shoeOrder, labelFn,
-      v => v.toFixed(2) + " " + unitL,
-      `${RANGE_LABEL[shoeRange]} · ${GRAN_LABEL[shoeGran]}: ${shoeOrder.length} pair${shoeOrder.length === 1 ? "" : "s"} · ${totalNum.toFixed(2)} ${unitL}`);
+    const shoeOrder = Object.keys(shoeTot).sort((a, b) => shoeTot[b] - shoeTot[a]);
+    const series = shoeOrder.map(name => {
+      const sid = shoeOrder.indexOf(name);
+      return { label: name, color: PALETTE[sid % PALETTE.length], points: (shoeCum[name] || []).map((v, i) => [i, v]) };
+    });
+    const totalNum = mToNum(grandTotal);
+    renderLineChart("rn-shoe-chart", "rn-shoe-chart-summary", series, {
+      xFormat: labelFn,
+      yFormat: v => v.toFixed(1) + " " + unitL,
+      summary: `${RANGE_LABEL[shoeRange]} · ${GRAN_LABEL[shoeGran]}: ${shoeOrder.length} pair${shoeOrder.length === 1 ? "" : "s"} · ${totalNum.toFixed(2)} ${unitL} cumulative`
+    });
     syncRangeTabs("rn-shoe-chart-range", shoeRange);
     syncRangeTabs("rn-shoe-chart-gran", shoeGran);
+  }
+
+  /* Returns the meters-per-shoe map for an entry, defaulting to the run
+     template's primary shoe when the entry has no explicit mileage map. */
+  function entryShoeMileageMap(e) {
+    if (e.shoeMileage && typeof e.shoeMileage === "object" && Object.keys(e.shoeMileage).length > 0) {
+      const out = {};
+      for (const sid in e.shoeMileage) {
+        const v = Number(e.shoeMileage[sid]);
+        if (v > 0) out[sid] = v;
+      }
+      if (Object.keys(out).length > 0) return out;
+    }
+    const r = D.runs[e.runId];
+    if (r && r.shoesId && (e.distanceM || 0) > 0) return { [r.shoesId]: e.distanceM };
+    return {};
+  }
+
+  function entryShoeName(sid) {
+    return (shoeById(sid) ? shoeById(sid).name : "(unknown shoe)");
   }
 
   function renderCategoryChart(which, valFn) {
@@ -532,16 +689,24 @@
   }
 
   function renderRunsList() {
-    const ids = Object.keys(D.runs).sort((a, b) => D.runs[a].name.localeCompare(D.runs[b].name));
     const box = $("runs-table");
+    const ids = Object.keys(D.runs)
+      .filter(id => {
+        const r = D.runs[id];
+        if (routeFilter.location && (r.location || "") !== routeFilter.location) return false;
+        if (routeFilter.surface && (r.surface || "") !== routeFilter.surface) return false;
+        if (routeFilter.type && (r.workoutType || "") !== routeFilter.type) return false;
+        return true;
+      })
+      .sort((a, b) => D.runs[a].name.localeCompare(D.runs[b].name));
     if (ids.length === 0) {
-      box.innerHTML = '<p class="no-data">No runs yet. Add them from the Home tab.</p>';
+      box.innerHTML = '<p class="no-data">No routes match the current filters.</p>';
       return;
     }
     const byRun = {};
     for (const e of D.entries) (byRun[e.runId] = byRun[e.runId] || []).push(e);
     const html = `<table>
-      <thead><tr><th>Run</th><th>Distance</th><th class="num">Pace</th><th>Location</th><th>Surface</th><th>Shoes</th><th>Type</th><th class="num">Done</th><th></th></tr></thead>
+      <thead><tr><th>Route</th><th>Distance</th><th class="num">Pace</th><th>Location</th><th>Surface</th><th>Shoes</th><th>Type</th><th class="num">Done</th><th></th></tr></thead>
       <tbody>
         ${ids.map(id => {
           const r = D.runs[id];
@@ -616,10 +781,19 @@
   function shoeTotalM(id) {
     let tot = 0;
     for (const e of D.entries) {
-      const r = D.runs[e.runId];
-      if (r && r.shoesId === id) tot += e.distanceM || 0;
+      const m = entryShoeMileageMap(e);
+      if (m[id] != null) tot += m[id];
     }
     return tot;
+  }
+
+  function shoeEntryList(id) {
+    const out = [];
+    for (const e of D.entries) {
+      const m = entryShoeMileageMap(e);
+      if (m[id] != null && m[id] > 0) out.push({ e, distM: m[id] });
+    }
+    return out;
   }
 
   function renderShoesList() {
@@ -635,7 +809,7 @@
         ${ids.map(id => {
           const s = D.shoes[id];
           const totM = shoeTotalM(id);
-          const runs = D.entries.filter(e => { const r = D.runs[e.runId]; return r && r.shoesId === id; });
+          const runs = shoeEntryList(id);
           const open = expandedShoes.has(id);
           return `<tr class="reg-row${open ? " open" : ""}">
             <td><span class="reg-toggle" onclick="rn_toggleShoe('${id}')"><span class="chev">${open ? "▾" : "▸"}</span> ${esc(s.name)}</span></td>
@@ -650,12 +824,12 @@
           ${open ? `<tr class="reg-detail"><td colspan="5">
             ${runs.length === 0
               ? `<div class="mutednote">No runs logged in these shoes yet.</div>`
-              : `<div class="reg-notes">${runs.slice().sort((a, b) => (b.datetime || "").localeCompare(a.datetime || "")).map(e => {
+              : `<div class="reg-notes">${runs.slice().sort((a, b) => (b.e.datetime || "").localeCompare(a.e.datetime || "")).map(({ e, distM }) => {
                   const r = D.runs[e.runId];
                   const pace = entryPace(e);
                   return `<div class="reg-note">
                     <span class="reg-note-date">${fmtDate(e.datetime)}</span>
-                    <span class="reg-note-meta">${fmtDist(e.distanceM || 0, 1)} ${distLabel()}${pace ? " · " + fmtPace(pace) + " /" + distLabel() : ""} · ${esc(r ? r.name : "—")}</span>
+                    <span class="reg-note-meta">${fmtDist(distM, 1)} ${distLabel()}${pace ? " · " + fmtPace(pace) + " /" + distLabel() : ""} · ${esc(r ? r.name : "—")}</span>
                   </div>`;
                 }).join("")}</div>`}
           </td></tr>` : ""}`;
@@ -684,9 +858,12 @@
   };
 
   window.rn_delShoe = function (id) {
-    const used = D.entries.some(e => { const r = D.runs[e.runId]; return r && r.shoesId === id; });
+    const used = shoeEntryList(id).length > 0;
     if (!confirm(used ? "Shoes are attached to runs. Delete anyway? (runs keep miles but lose the shoe link)" : "Delete these shoes?")) return;
     for (const rid in D.runs) { if (D.runs[rid].shoesId === id) D.runs[rid].shoesId = ""; }
+    for (const e of D.entries) {
+      if (e.shoeMileage) delete e.shoeMileage[id];
+    }
     delete D.shoes[id];
     refreshAll();
   };
@@ -734,7 +911,8 @@
           distanceM: Math.round(run.distanceM * mult),
           durationS: Math.round(run.durationS * (0.95 + rnd() * 0.25)),
           elevGainM: run.elevGainM, effort: 4 + Math.floor(rnd() * 5),
-          notes: rnd() < 0.4 ? pick(["felt strong", "easy", "a bit tired", "good form"]) : ""
+          notes: rnd() < 0.4 ? pick(["felt strong", "easy", "a bit tired", "good form"]) : "",
+          shoeMileage: { [run.shoesId]: Math.round(run.distanceM * mult) }
         });
       }
     }
@@ -779,6 +957,13 @@
       for (const e of entriesRaw) { const pid = parseInt(e.id, 10); if (pid > maxId) maxId = pid; }
       for (const e of entriesRaw) {
         const pid = parseInt(e.id, 10) || (++maxId);
+        let shoeMileage = {};
+        if (e.shoeMileage && typeof e.shoeMileage === "object") {
+          for (const sid in e.shoeMileage) {
+            const v = Number(e.shoeMileage[sid]);
+            if (v > 0) shoeMileage[sid] = v;
+          }
+        }
         db.entries.push({
           id: pid,
           datetime: String(e.datetime || ""),
@@ -788,8 +973,19 @@
           elevGainM: Number(e.elevGainM || 0),
           elevLossM: Number(e.elevLossM || 0),
           effort: e.effort == null ? null : Number(e.effort),
-          notes: String(e.notes ?? "")
+          notes: String(e.notes ?? ""),
+          shoeMileage: shoeMileage
         });
+      }
+      // Backward compatibility: entries created before multi-shoe support carry
+      // no shoe mileage. Assign the run template's primary shoe to them so all
+      // existing data keeps its mileage attribution (no data is ever dropped).
+      for (const e of db.entries) {
+        if (Object.keys(e.shoeMileage).length === 0) {
+          const run = db.runs[e.runId];
+          const sid = run && run.shoesId ? run.shoesId : "";
+          if (sid && e.distanceM > 0) e.shoeMileage[sid] = e.distanceM;
+        }
       }
       db.entries.sort((a, b) => (b.datetime || "").localeCompare(a.datetime || ""));
       return db;
@@ -818,7 +1014,8 @@
         $("add-elev").value = r.elevGainM != null ? eleMToNum(r.elevGainM).toFixed(0) : "";
         $("add-location").value = r.location || "";
         $("add-surface").value = r.surface || "";
-        $("add-shoes").value = (shoeById(r.shoesId) ? shoeById(r.shoesId).name : "") || "";
+        const tmplShoe = r.shoesId && shoeById(r.shoesId) ? shoeById(r.shoesId).name : "";
+        resetShoeRows([{ name: tmplShoe, dist: r.distanceM ? mToNum(r.distanceM).toFixed(2) : "" }]);
         $("add-type").value = r.workoutType || "";
         $("add-name").focus();
         e.target.value = "";
@@ -827,10 +1024,38 @@
       $("ee-save").addEventListener("click", () => {
         const entry = D.entries.find(e => e.id === $("edit-entry-modal")._entryId);
         if (!entry) { closeModals(); return; }
+        const oldRunId = entry.runId;
         entry.runId = $("ee-run").value;
         entry.datetime = $("ee-datetime").value || entry.datetime;
+        // If the run changed and this entry used exactly one shoe (the old run's
+        // primary), reassociate it to the new run's primary shoe.
+        if (oldRunId && oldRunId !== entry.runId) {
+          const oldRun = D.runs[oldRunId];
+          const newRun = D.runs[entry.runId];
+          if (entry.shoeMileage && Object.keys(entry.shoeMileage).length === 1 &&
+              oldRun && newRun && oldRun.shoesId !== newRun.shoesId) {
+            const oldSid = Object.keys(entry.shoeMileage)[0];
+            const collected = Number(entry.shoeMileage[oldSid] || 0);
+            delete entry.shoeMileage[oldSid];
+            if (newRun.shoesId && collected > 0) entry.shoeMileage[newRun.shoesId] = collected;
+          }
+        }
         const d = parseFloat($("ee-distance").value);
-        entry.distanceM = d > 0 ? numToM(d) : 0;
+        const newDistM = d > 0 ? numToM(d) : 0;
+        const oldDistM = entry.distanceM || 0;
+        entry.distanceM = newDistM;
+        if (entry.shoeMileage && oldDistM > 0 && newDistM !== oldDistM) {
+          const ratio = newDistM / oldDistM;
+          for (const sid in entry.shoeMileage) {
+            entry.shoeMileage[sid] = Math.round(entry.shoeMileage[sid] * ratio);
+          }
+        }
+        if (!entry.shoeMileage) entry.shoeMileage = {};
+        if (newDistM > 0 && Object.keys(entry.shoeMileage).length === 0) {
+          const r = D.runs[entry.runId];
+          const sid = r && r.shoesId ? r.shoesId : "";
+          if (sid) entry.shoeMileage[sid] = newDistM;
+        }
         const eh = parseInt($("ee-dur-h").value || "0", 10);
         const em = parseInt($("ee-dur-m").value || "0", 10);
         const es = parseInt($("ee-dur-s").value || "0", 10);
@@ -875,6 +1100,7 @@
         const durChanged = newDurS !== r.durationS;
         const elevChanged = newElevM !== r.elevGainM;
         const shoeChanged = newShoesId !== r.shoesId;
+        const oldShoesId = r.shoesId;
 
         r.distanceM = newDistM;
         r.durationS = newDurS;
@@ -887,6 +1113,14 @@
               if (distChanged) e.distanceM = newDistM;
               if (durChanged) e.durationS = newDurS;
               if (elevChanged) e.elevGainM = newElevM;
+              if (shoeChanged && e.shoeMileage && oldShoesId) {
+                // Entries that only used the old primary shoe follow the new one.
+                const keys = Object.keys(e.shoeMileage);
+                if (keys.length === 1 && keys[0] === oldShoesId) {
+                  if (newShoesId) e.shoeMileage[newShoesId] = e.shoeMileage[oldShoesId];
+                  delete e.shoeMileage[oldShoesId];
+                }
+              }
             }
           }
         }
@@ -933,6 +1167,30 @@
         refreshAll();
       });
 
+      $("add-shoe-btn").addEventListener("click", () => {
+        $("add-shoe-rows").insertAdjacentHTML("beforeend", shoeRowHTML());
+        wireShoeRowEvents($("add-shoe-rows"));
+      });
+      resetShoeRows();
+
+      setupRangeButtons("rn-stat-range", RANGES, RANGE_LABEL, () => statRange, v => { statRange = v; }, renderHome, "Period");
+
+      ["rn-filter-location", "rn-filter-surface", "rn-filter-type"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", () => {
+          routeFilter.location = $("filter-location") ? $("filter-location").value : routeFilter.location;
+          routeFilter.surface = $("filter-surface") ? $("filter-surface").value : routeFilter.surface;
+          routeFilter.type = $("filter-type") ? $("filter-type").value : routeFilter.type;
+          renderRunsList();
+        });
+      });
+      const resetBtn = document.getElementById("rn-filter-reset");
+      if (resetBtn) resetBtn.addEventListener("click", () => {
+        routeFilter = { location: "", surface: "", type: "" };
+        renderSuggestionLists();
+        renderRunsList();
+      });
+
       $("unit-toggle").addEventListener("click", () => {
         applyUnit(unit === "metric" ? "imperial" : "metric");
         renderTool();
@@ -942,6 +1200,8 @@
       selectedDate = null;
       expandedRuns.clear();
       expandedShoes.clear();
+      resetShoeRows();
+      statRange = "week";
       mileRange = "30d";
       mileGran = "week";
       shoeRange = "30d";
@@ -954,20 +1214,28 @@
       effortGran = "day";
       histFrom = null;
       histTo = null;
+      routeFilter = { location: "", surface: "", type: "" };
       $("hist-from").value = "";
       $("hist-to").value = "";
       resetHistoryRange();
     },
     render() { renderTool(); },
     summary() {
-      let totalM = 0;
+      const tISO = todayISO();
+      const wFrom = mondayOf(tISO);
+      const weekEntries = D.entries.filter(e => {
+        const d = (e.datetime || "").slice(0, 10);
+        return d >= wFrom && d <= tISO;
+      });
+      let weekM = 0, totalM = 0;
       for (const e of D.entries) totalM += e.distanceM || 0;
+      for (const e of weekEntries) weekM += e.distanceM || 0;
       const last = D.entries.slice().sort((a, b) => (b.datetime || "").localeCompare(a.datetime || ""))[0];
       const lr = last && D.runs[last.runId];
       return [
-        { label: "runs", value: D.entries.length },
-        { label: "distance", value: fmtDist(totalM, 1) + " " + distLabel() },
-        { label: "shoes", value: Object.keys(D.shoes).length },
+        { label: "runs this week", value: weekEntries.length },
+        { label: "weekly distance", value: fmtDist(weekM, 1) + " " + distLabel() },
+        { label: "total distance", value: fmtDist(totalM, 1) + " " + distLabel() },
         { label: "last run", value: lr ? `${lr.name} · ${fmtDate(last.datetime)}` : "—" }
       ];
     },

@@ -109,6 +109,84 @@ function renderBarChart(boxId, sumId, sorted, tipFn, labelFn, summary, colorFn) 
   return { total, count: sorted.length, max };
 }
 
+/* -------- Line chart (SVG) -------- */
+/* series: [{ label, points: [[x, y], ...], color, dashed? }]
+   opts: { xFormat (key->label), yFormat (value->string), summary,
+           endLabel (shown at last point), targetValue (for dotted marker) }
+   Converts numeric x/y into a path scaled to the container. X values are
+   treated as ascending numeric indices (caller maps real dates to indices). */
+function renderLineChart(boxId, sumId, series, opts) {
+  const box = document.getElementById(boxId);
+  const sum = document.getElementById(sumId);
+  const o = opts || {};
+  if (series.length === 0 || series.every(s => !s.points || s.points.length === 0)) {
+    box.innerHTML = '<p class="no-data">No data in this range.</p>';
+    sum.textContent = "";
+    return;
+  }
+  const xFormat = o.xFormat || (k => String(k));
+  const yFormat = o.yFormat || (v => formatTick(v));
+
+  let maxX = 0, maxY = 0;
+  for (const s of series) {
+    for (const [x, y] of (s.points || [])) {
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+    if (o.targetValue && o.targetValue > maxY) maxY = o.targetValue;
+  }
+  maxY = niceTicks(maxY)[3] || maxY;
+  const padX = 28, padTop = 16, padBottom = 30, padRight = 30;
+  const W = 640, H = 220;
+  const iw = W - padX - padRight, ih = H - padTop - padBottom;
+  const toX = x => padX + (maxX <= 1 ? 0 : (x / maxX) * iw);
+  const toY = y => padTop + ih - (maxY > 0 ? (y / maxY) * ih : 0);
+
+  const ticks = niceTicks(maxY);
+  let yTicks = "";
+  for (const t of ticks) {
+    yTicks += `<text x="${padX - 6}" y="${toY(t) + 4}" text-anchor="end" class="lc-tick">${yFormat(t)}</text>`;
+  }
+
+  let xTicks = "";
+  const n = maxX + 1;
+  const step = Math.max(1, Math.ceil(n / 6));
+  for (let i = 0; i <= maxX; i += step) {
+    xTicks += `<text x="${toX(i)}" y="${H - 8}" text-anchor="middle" class="lc-tick">${xFormat(i)}</text>`;
+  }
+  if (maxX % step !== 0) {
+    xTicks += `<text x="${toX(maxX)}" y="${H - 8}" text-anchor="middle" class="lc-tick">${xFormat(maxX)}</text>`;
+  }
+
+  let polylines = "";
+  for (const s of series) {
+    if (!s.points || s.points.length === 0) continue;
+    const pts = s.points.map(([x, y]) => `${toX(x).toFixed(1)},${toY(y).toFixed(1)}`).join(" ");
+    const dash = s.dashed ? ' stroke-dasharray="6 4"' : "";
+    polylines += `<polyline class="lc-line" fill="none" stroke="${s.color || "var(--accent)"}" stroke-width="2.5" points="${pts}"${dash}>`;
+    polylines += `<title>${esc(s.label)}</title></polyline>`;
+    const last = s.points[s.points.length - 1];
+    if (last && !s.dashed) {
+      polylines += `<circle class="lc-dot" cx="${toX(last[0])}" cy="${toY(last[1])}" r="4" fill="${s.color || "var(--accent)"}"><title>${esc(s.label)}: ${yFormat(last[1])}</title></circle>`;
+    }
+    for (const [x, y] of s.points) {
+      if (y == null) continue;
+      polylines += `<circle class="lc-point" cx="${toX(x)}" cy="${toY(y)}" r="6" fill="transparent"><title>${esc(s.label)} ${xFormat(x)}: ${yFormat(y)}</title></circle>`;
+    }
+  }
+
+  box.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="line-chart-svg" role="img" aria-label="line chart">
+      <line x1="${padX}" y1="${padTop}" x2="${padX}" y2="${padTop + ih}" stroke="var(--grid)"/>
+      <line x1="${padX}" y1="${padTop + ih}" x2="${padX + iw}" y2="${padTop + ih}" stroke="var(--grid)"/>
+      ${yTicks}
+      ${xTicks}
+      ${polylines}
+    </svg>
+    ${o.endLabel ? `<div class="line-chart-meta">${o.endLabel}</div>` : ""}`;
+  if (sum) sum.textContent = o.summary || "";
+}
+
 /* -------- Stacked bar chart -------- */
 /* buckets: { bucketKey: { category: value } }; catOrder: descending category totals. */
 function renderStackedChart(boxId, sumId, buckets, catOrder, labelFn, tipFn, summary) {

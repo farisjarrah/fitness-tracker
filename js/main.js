@@ -147,7 +147,6 @@ function autoStart() {
 
 (function boot() {
   buildToolSwitcher("toolbar");
-  if (typeof window.initImportTab === "function") window.initImportTab();
   for (const tool of TOOLS) tool.setup();
   if (!readBackup()) {
     document.getElementById("load-screen").classList.remove("hidden");

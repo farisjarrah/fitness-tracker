@@ -7,7 +7,7 @@
    ===================================================================== */
 
 /* -------- Global state (live combined DB; keep object identity stable) -------- */
-window.DB = { calorie: {}, run: {}, climb: {} };
+window.DB = { calorie: {}, run: {}, climb: {}, health: {} };
 let filename = "fitness-data.json";
 
 const THEME_KEY = "fit-theme";

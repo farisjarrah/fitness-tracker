@@ -336,6 +336,131 @@
     </div>
   </section>
 
+<!-- HEALTH -->
+  <section class="tool hidden" id="tool-health">
+    <nav class="tabs">
+      <button class="tab active" data-view="settings">Settings</button>
+      <button class="tab" data-view="weight">Weight log</button>
+    </nav>
+
+    <!-- SETTINGS -->
+    <div class="view" id="ht-view-settings">
+      <form id="ht-settings-form">
+        <div class="card">
+          <h2>Body</h2>
+          <div class="field">
+            <label for="ht-height">Height</label>
+            <input id="ht-height" type="number" min="0" step="any" placeholder="175" style="width:100px">
+            <select id="ht-height-unit">
+              <option value="cm">cm</option>
+              <option value="in">in</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Daily targets</h2>
+          <div class="field">
+            <label for="ht-calories">Calories</label>
+            <input id="ht-calories" type="number" min="0" step="any" placeholder="2400" style="width:100px">
+            <span class="unit">kcal/day</span>
+          </div>
+          <div class="field">
+            <label for="ht-protein">Protein</label>
+            <input id="ht-protein" type="number" min="0" step="any" placeholder="150" style="width:100px">
+            <span class="unit">g</span>
+          </div>
+          <div class="field">
+            <label for="ht-carbs">Carbs</label>
+            <input id="ht-carbs" type="number" min="0" step="any" placeholder="220" style="width:100px">
+            <span class="unit">g</span>
+          </div>
+          <div class="field">
+            <label for="ht-fat">Fat</label>
+            <input id="ht-fat" type="number" min="0" step="any" placeholder="75" style="width:100px">
+            <span class="unit">g</span>
+          </div>
+          <div class="field">
+            <label for="ht-water">Water</label>
+            <input id="ht-water" type="number" min="0" step="any" placeholder="2500" style="width:100px">
+            <select id="ht-water-unit">
+              <option value="ml">ml</option>
+              <option value="l">L</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ht-mileage">Weekly running</label>
+            <input id="ht-mileage" type="number" min="0" step="any" placeholder="40" style="width:100px">
+            <select id="ht-mileage-unit">
+              <option value="km">km</option>
+              <option value="mi">mi</option>
+            </select>
+            <span class="unit">/ week</span>
+          </div>
+          <div class="field">
+            <label for="ht-cl-boulder">Climbs · bouldering</label>
+            <input id="ht-cl-boulder" type="number" min="0" step="1" placeholder="2" style="width:70px">
+            <span class="unit">/ week</span>
+          </div>
+          <div class="field">
+            <label for="ht-cl-toprope">Climbs · top rope</label>
+            <input id="ht-cl-toprope" type="number" min="0" step="1" placeholder="1" style="width:70px">
+            <span class="unit">/ week</span>
+          </div>
+          <div class="field">
+            <label for="ht-cl-lead">Climbs · lead</label>
+            <input id="ht-cl-lead" type="number" min="0" step="1" placeholder="1" style="width:70px">
+            <span class="unit">/ week</span>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn primary">Save settings</button>
+          </div>
+        </div>
+      </form>
+      <p class="form-hint" style="padding:0 4px 4px;">
+        All values are optional and can stay empty. Height and targets are read by the
+        Overview, Calorie (target lines) and Run (weekly-mileage target) tools.
+      </p>
+    </div>
+
+    <!-- WEIGHT LOG -->
+    <div class="view hidden" id="ht-view-weight">
+      <div class="card">
+        <h2>Add weight</h2>
+        <form class="add-form" id="ht-add-weight">
+          <div class="field">
+            <label for="ht-w-date">Date</label>
+            <input id="ht-w-date" type="date" style="width:140px">
+          </div>
+          <div class="field">
+            <label for="ht-w-value">Weight</label>
+            <input id="ht-w-value" type="number" min="0" step="any" placeholder="80" required style="width:100px">
+            <select id="ht-w-unit">
+              <option value="kg">kg</option>
+              <option value="lb">lb</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn primary">Log weight</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Weight over time</h2>
+        <div class="chart-summary" id="ht-w-summary"></div>
+        <div id="ht-w-chart"></div>
+      </div>
+
+      <div class="card">
+        <h2>Weight history</h2>
+        <div id="ht-w-log"><p class="no-data">No weigh-ins logged yet.</p></div>
+      </div>
+    </div>
+  </section>
+
 <!-- =====================================================================
   Run tool section — injected by the shell. Contains ONLY the run tool's
   markup (add form, stats, charts, history, runs/shoes registries, edit
@@ -350,7 +475,7 @@
   <nav class="tabs">
     <button class="tab active" data-view="home">Home</button>
     <button class="tab" data-view="history">History</button>
-    <button class="tab" data-view="runs">Runs</button>
+    <button class="tab" data-view="runs">Routes</button>
     <button class="tab" data-view="shoes">Shoes</button>
   </nav>
 
@@ -398,8 +523,9 @@
           <input id="rn-add-surface" type="text" list="rn-surface-list" placeholder="trail" style="width:90px">
         </div>
         <div class="field">
-          <label for="rn-add-shoes">Shoes</label>
-          <input id="rn-add-shoes" type="text" list="rn-shoes-list" placeholder="Pegasus 39" style="width:130px">
+          <label>Shoes</label>
+          <div id="rn-add-shoe-rows" class="shoe-rows"></div>
+          <button type="button" class="btn small" id="rn-add-shoe-btn">＋ Add shoe</button>
         </div>
         <div class="field">
           <label for="rn-add-type">Workout type</label>
@@ -434,12 +560,13 @@
     <div class="card">
       <div class="summary">
         <span class="big" id="rn-total-runs">0</span>
-        <span class="unit">runs</span>
+        <span class="unit" id="rn-total-runs-label">runs</span>
       </div>
+      <div class="range-tabs" id="rn-stat-range" style="margin-bottom:0;"></div>
       <div class="stat-grid">
-        <div class="stat-box"><div class="v" id="rn-stat-distance">0</div><div class="l">total distance</div></div>
-        <div class="stat-box"><div class="v" id="rn-stat-elev">0</div><div class="l">total climb</div></div>
-        <div class="stat-box"><div class="v" id="rn-stat-time">0h</div><div class="l">total time</div></div>
+        <div class="stat-box"><div class="v" id="rn-stat-distance">0</div><div class="l" id="rn-stat-distance-label">distance</div></div>
+        <div class="stat-box"><div class="v" id="rn-stat-elev">0</div><div class="l">climb</div></div>
+        <div class="stat-box"><div class="v" id="rn-stat-time">0h</div><div class="l">time</div></div>
         <div class="stat-box"><div class="v" id="rn-stat-avgpace">—</div><div class="l">avg pace</div></div>
       </div>
       <h2 style="margin-top:16px;">Recent runs</h2>
@@ -516,11 +643,28 @@
   <!-- RUNS REGISTRY -->
   <div class="view hidden" id="rn-view-runs">
     <div class="card">
-      <h2>Runs</h2>
+      <h2>Routes</h2>
       <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
-        Runs are stored once. Editing a run here updates it everywhere it's used.
-        Click a run name to expand it and see every time you've done it.
+        Routes are stored once. Click a route name to expand it and see every time you've done it.
       </p>
+      <div class="hist-filters" style="margin-bottom:14px;">
+        <div class="field">
+          <label for="rn-filter-location">Location</label>
+          <select id="rn-filter-location"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label for="rn-filter-surface">Surface</label>
+          <select id="rn-filter-surface"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label for="rn-filter-type">Route type</label>
+          <select id="rn-filter-type"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn small" id="rn-filter-reset">Reset</button>
+        </div>
+      </div>
       <div id="rn-runs-table"></div>
     </div>
   </div>
@@ -711,6 +855,10 @@
           <input id="cal-add-qty" type="number" min="0.01" step="any" value="1" style="width:80px">
         </div>
         <div class="field">
+          <label for="cal-add-date">Date</label>
+          <input id="cal-add-date" type="date" style="width:140px">
+        </div>
+        <div class="field">
           <label for="cal-add-time">Time <em style="color:var(--muted);font-style:normal;">(auto)</em></label>
           <input id="cal-add-time" type="time" style="width:120px">
         </div>
@@ -721,6 +869,7 @@
       </form>
       <datalist id="cal-food-list"></datalist>
       <p class="form-hint">
+        Add food for any date — forgot to log yesterday (or last week)? Just pick the date.
         The time field auto-fills with the current time — click into it if you want to change it.
         Picking from the dropdown (or typing a name you've used before) reuses that food's stored calories/macros.
       </p>
@@ -732,6 +881,11 @@
         <span class="unit">calories today</span>
       </div>
       <p id="cal-today-date"></p>
+      <div>
+        <label class="cheat-toggle">
+          <input type="checkbox" id="cal-today-cheat"> Mark today as a cheat day
+        </label>
+      </div>
       <h2 style="margin-top:16px;">Today's entries</h2>
       <div id="cal-today-entries"><p class="no-data" style="padding:10px 0;">No entries yet today.</p></div>
     </div>
@@ -741,6 +895,24 @@
       <div class="range-tabs" id="cal-cal-range"></div>
       <div class="chart-summary" id="cal-cal-summary"></div>
       <div id="cal-cal-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Protein (g) consumed</h2>
+      <div class="range-tabs" id="cal-protein-range"></div>
+      <div class="chart-summary" id="cal-protein-summary"></div>
+      <div id="cal-protein-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Carbs (g) consumed</h2>
+      <div class="range-tabs" id="cal-carbs-range"></div>
+      <div class="chart-summary" id="cal-carbs-summary"></div>
+      <div id="cal-carbs-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Fat (g) consumed</h2>
+      <div class="range-tabs" id="cal-fat-range"></div>
+      <div class="chart-summary" id="cal-fat-summary"></div>
+      <div id="cal-fat-chart"></div>
     </div>
     <div class="card">
       <h2>Foods eaten (times used)</h2>
@@ -907,43 +1079,6 @@
 
 </section>
 
-  <!-- ================= IMPORT (TEMP) ================= -->
-  <section class="tool hidden" id="tool-import">
-    <h2 style="margin:0 0 6px;font-size:20px;">📥 Import your 3 data files</h2>
-    <p class="intro" style="color:var(--muted);margin:0 0 16px;">
-      One-time helper: load your old <code>calorie-data.json</code>, <code>run-data.json</code>
-      and <code>climb-data.json</code>. They're detected automatically — pick them one at a time
-      or select several at once. Then tap <strong>Merge &amp; download</strong>.
-    </p>
-
-    <div class="load-box" style="text-align:left;">
-      <p style="margin:0 0 14px;color:var(--muted);font-size:14px;">🧗 Climbing — expects <code>routes</code> + <code>climbs</code></p>
-      <label class="drop" data-slot="climb">
-        <input type="file" accept=".json,application/json" multiple>
-        <strong>Click to choose</strong> or drop your climb file here
-      </label>
-      <div class="loaded hidden" data-status="climb"></div>
-
-      <p style="margin:18px 0 14px;color:var(--muted);font-size:14px;">🏃 Running — expects <code>runs</code> + <code>entries</code></p>
-      <label class="drop" data-slot="run">
-        <input type="file" accept=".json,application/json" multiple>
-        <strong>Click to choose</strong> or drop your run file here
-      </label>
-      <div class="loaded hidden" data-status="run"></div>
-
-      <p style="margin:18px 0 14px;color:var(--muted);font-size:14px;">🍎 Calories — expects <code>foods</code> + <code>entries</code></p>
-      <label class="drop" data-slot="calorie">
-        <input type="file" accept=".json,application/json" multiple>
-        <strong>Click to choose</strong> or drop your calorie file here
-      </label>
-      <div class="loaded hidden" data-status="calorie"></div>
-
-      <div id="imp-err" style="color:var(--danger);min-height:18px;font-size:14px;margin-top:12px;"></div>
-      <button class="btn primary" id="imp-merge" disabled>Merge &amp; download fitness-data.json</button>
-      <span id="imp-msg" style="margin-left:12px;color:var(--muted);font-size:13px;"></span>
-    </div>
-  </section>
-
   <footer class="note">Data stays in your browser. Click "Save file" to download the updated JSON.</footer>
 </div>
 
@@ -951,10 +1086,10 @@
 <script src="js/shared/charts.js"></script>
 <script src="js/shared/ui.js"></script>
 <script src="js/registry.js"></script>
+<script src="js/tools/health.js"></script>
 <script src="js/tools/calorie.js"></script>
 <script src="js/tools/run.js"></script>
 <script src="js/tools/climb.js"></script>
-<script src="js/import.js"></script>
 <script src="js/main.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol === "https:") {

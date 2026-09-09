@@ -22,19 +22,14 @@
   let selectedDate = null;
   let calRange = "today";
   let foodRange = "today";
+  let proteinRange = "today";
+  let carbsRange = "today";
+  let fatRange = "today";
   let histFrom = null;
   let histTo = null;
 
   const RANGES = ["today", "week", "month", "year", "all"];
   const RANGE_LABEL = { today: "Today", week: "This week", month: "This month", year: "This year", all: "All time" };
-  const TIME_BUCKETS = [
-    { min: 0,   max: 6,  label: "12a–6a" },
-    { min: 6,   max: 10, label: "6a–10a" },
-    { min: 10,  max: 14, label: "10a–2p" },
-    { min: 14,  max: 18, label: "2p–6p" },
-    { min: 18,  max: 22, label: "6p–10p" },
-    { min: 22,  max: 24, label: "10p–12a" }
-  ];
 
   /* -------- Data helpers -------- */
   function nowHM() {
@@ -68,11 +63,23 @@
     d.setDate(d.getDate() + fwd);
     return toISO(d);
   }
-  function timeToHour(t) {
-    if (!t) return -1;
-    const parts = t.split(":").map(Number);
-    return parts[0] + (parts[1] || 0) / 60;
+
+  /* -------- Cheat days -------- */
+  function cheatDays() {
+    D.cheatDays = D.cheatDays || [];
+    return D.cheatDays;
   }
+  function isCheatDay(date) {
+    return cheatDays().indexOf(date) !== -1;
+  }
+  function toggleCheatDay(date) {
+    const arr = cheatDays();
+    const i = arr.indexOf(date);
+    if (i === -1) arr.push(date);
+    else arr.splice(i, 1);
+    refreshAll();
+  }
+  window.cal_toggleCheat = function (date) { toggleCheatDay(date); };
 
   /* -------- Chart bucketing -------- */
   /* Every bucket => { label: entries[] }. Keyed for aggregation. */
@@ -94,33 +101,6 @@
       }
     }
     return map;
-  }
-
-  /* Calorie chart buckets: "today" is broken down by time of day.
-     All other ranges group by date (from bucketEntries). */
-  function calorieBuckets(range) {
-    const today = todayISO();
-    if (range === "today") {
-      const map = {};
-      for (const b of TIME_BUCKETS) map[b.label] = [];
-      for (const e of D.entries) {
-        if (e.date !== today) continue;
-        const t = timeToHour(e.time);
-        for (const b of TIME_BUCKETS) {
-          if (t >= b.min && t < b.max) { map[b.label].push(e); break; }
-        }
-      }
-      return map;
-    }
-    return bucketEntries(range);
-  }
-
-  function bucketLabel(range, key) {
-    if (range === "today") return "today";
-    if (range === "week") return WEEKDAY_NAMES[parseDate(key).getDay()];
-    if (range === "month") return String(parseDate(key).getDate());
-    if (range === "year" || range === "all") return MONTH_NAMES[parseInt(key.slice(5, 7), 10) - 1];
-    return key;
   }
 
   /* -------- Datalists / food select -------- */
@@ -146,6 +126,7 @@
     $("today-date").textContent = "Date: " + fmtDate(date);
     const entries = D.entries.filter(e => e.date === date);
     $("today-cal").textContent = calorieTotal(entries);
+    $("today-cheat").checked = isCheatDay(date);
     const box = $("today-entries");
     if (entries.length === 0) {
       box.innerHTML = '<p class="no-data" style="padding:10px 0;">No entries yet today.</p>';
@@ -225,10 +206,11 @@
       html += `<div class="day-group">
       <div class="day-head" onclick="cal_toggleDay('${date}')">
         <span class="day-date">${fmtDate(date)}</span>
-        <span class="day-total">${total} cal · ${entries.length} entr${entries.length === 1 ? "y" : "ies"}</span>
+        <span class="day-total">${total} cal · ${entries.length} entr${entries.length === 1 ? "y" : "ies"}${isCheatDay(date) ? " · <span class='cheat-badge'>cheat day</span>" : ""}</span>
       </div>
       <div class="day-actions">
         <button class="btn small" onclick="event.stopPropagation();cal_addEntryTo('${date}')">+ Add entry</button>
+        <button class="btn small ${isCheatDay(date) ? 'danger' : ''}" onclick="event.stopPropagation();cal_toggleCheat('${date}')">${isCheatDay(date) ? "♯ Unmark cheat day" : "♯ Cheat day"}</button>
       </div>
       <div class="day-entries${open ? "" : " hidden"}">
         ${tableHTML(entries, true)}
@@ -342,27 +324,75 @@
   }
 
   /* -------- Charts -------- */
-  function renderCalChart(range) {
-    const buckets = calorieBuckets(range);
-    const labelFn = range === "today" ? k => k : k => bucketLabel(range, k);
-    const sorted = Object.keys(buckets).map(k => [k, calorieTotal(buckets[k])]);
-    let summary = "";
-    if (sorted.length > 0) {
-      const total = sorted.reduce((s, p) => s + p[1], 0);
-      if (range === "today") {
-        const todays = D.entries.filter(e => e.date === todayISO());
-        summary = `Today: ${todays.length} entries · ${total} total calories`;
-      } else {
-        const label = RANGE_LABEL[range];
-        const entriesCount = Object.keys(buckets).reduce((s, k) => s + buckets[k].length, 0);
-        summary = `${label}: ${entriesCount} entries · ${total} calories`;
-      }
+  /* Builds cumulative daily series from entries filtered by range.
+     Returns { points:[[idx, cum], ...], labels:[[idx, date]], totalEntries }. */
+  function cumulativeSeries(range, valFn) {
+    const today = todayISO();
+    const buckets = bucketEntries(range);
+    const labels = Object.keys(buckets).sort();
+    if (range === "today") labels[0] = today;
+    if (range === "year") labels.sort(); // already month keys
+    const points = [];
+    let cum = 0;
+    for (let i = 0; i < labels.length; i++) {
+      const k = labels[i];
+      const key = range === "year" ? k.slice(0, 7) : k;
+      const bucket = range === "today" ? (buckets[today] || []) : (buckets[key] || []);
+      for (const e of bucket) cum += valFn(e);
+      points.push([i, cum]);
     }
-    renderBarChart("cal-cal-chart", "cal-cal-summary", sorted,
-      v => `${v} calorie${v === 1 ? "" : "s"}`,
-      labelFn,
-      summary);
-    syncRangeTabs("cal-cal-range", range);
+    return { points, labels, count: labels.length };
+  }
+
+  /* Adds a dotted target line to an existing cumulative series if target set. */
+  function targetSeries(range, target, count) {
+    if (!target || !(target > 0)) return null;
+    const t = range === "today" ? target : target * count;
+    return [{ label: "target", color: "var(--danger)", dashed: true, points: [[0, t], [Math.max(0, count - 1), t]] }];
+  }
+
+  function macroTotal(entries, key) {
+    let t = 0;
+    for (const e of entries) {
+      const f = D.foods[e.foodId];
+      if (f && f.macros) t += (f.macros[key] || 0) * (e.qty || 1);
+    }
+    return t;
+  }
+
+  function renderLineCal(range, rangeBoxId, boxId, sumId, valFn, target, label) {
+    const { points, labels, count } = cumulativeSeries(range, valFn);
+    const xFormat = range === "today"
+      ? k => k
+      : (range === "week" ? k => WEEKDAY_NAMES[parseDate(labels[k]).getDay()]
+        : (range === "month" ? k => String(parseDate(labels[k]).getDate())
+          : (range === "year" || range === "all" ? k => MONTH_NAMES[parseInt(labels[k].slice(5, 7), 10) - 1]
+            : k => labels[k])));
+    const unit = label === "Calories" ? " cal" : " g";
+    const series = [{ label, color: "var(--accent)", points }];
+    const ts = targetSeries(range, target, count);
+    if (ts) series.push(...ts);
+    let summary = "";
+    if (count > 0) {
+      const final = points.length ? points[points.length - 1][1] : 0;
+      summary = `${RANGE_LABEL[range]} · ${label} cumulative: ${Math.round(final)}${unit}${ts ? " · target " + target + (range === "today" ? "" : "/day") : ""}`;
+    }
+    renderLineChart(boxId, sumId, series, {
+      xFormat,
+      yFormat: v => Math.round(v).toLocaleString(),
+      summary
+    });
+    syncRangeTabs(rangeBoxId, range);
+  }
+
+  function renderCalChart(range) {
+    const t = (window.DB.health && window.DB.health.targets) ? (window.DB.health.targets.calories || null) : null;
+    renderLineCal(range, "cal-cal-range", "cal-cal-chart", "cal-cal-summary", e => totalForEntry(e), t, "Calories");
+  }
+
+  function renderMacroChart(range, rangeBoxId, key, boxId, sumId, label) {
+    const t = (window.DB.health && window.DB.health.targets) ? (window.DB.health.targets[key] || null) : null;
+    renderLineCal(range, rangeBoxId, boxId, sumId, e => macroTotal([e], key), t, label);
   }
 
   function renderFoodChart(range) {
@@ -392,6 +422,9 @@
 
   function renderCharts() {
     renderCalChart(calRange);
+    renderMacroChart(proteinRange, "cal-protein-range", "protein", "cal-protein-chart", "cal-protein-summary", "Protein");
+    renderMacroChart(carbsRange, "cal-carbs-range", "carbs", "cal-carbs-chart", "cal-carbs-summary", "Carbs");
+    renderMacroChart(fatRange, "cal-fat-range", "fat", "cal-fat-chart", "cal-fat-summary", "Fat");
     renderFoodChart(foodRange);
   }
 
@@ -423,7 +456,7 @@
 
     D.entries.push({
       id: newEntryId(),
-      date: todayISO(),
+      date: $("add-date").value || todayISO(),
       time: time,
       foodId: foodId,
       qty: qty
@@ -436,6 +469,7 @@
     $("add-fat").value = "";
     $("add-qty").value = "1";
     $("add-time").value = "";
+    $("add-date").value = "";
     refreshAll();
   }
 
@@ -538,10 +572,10 @@
     label: "Calorie",
     emoji: "🍎",
     rootId: "tool-calorie",
-    empty() { return { foods: {}, entries: [] }; },
+    empty() { return { foods: {}, entries: [], cheatDays: [] }; },
     normalize(raw) {
       if (typeof raw !== "object" || raw === null) throw new Error("calorie data must be a JSON object");
-      const db = { foods: {}, entries: [] };
+      const db = { foods: {}, entries: [], cheatDays: [] };
       if (!raw.foods || typeof raw.foods !== "object") throw new Error("calorie data missing 'foods' object");
       for (const id in raw.foods) {
         const f = raw.foods[id];
@@ -551,6 +585,7 @@
           macros: (f.macros && typeof f.macros === "object") ? f.macros : {}
         };
       }
+      if (Array.isArray(raw.cheatDays)) db.cheatDays = raw.cheatDays.map(d => String(d).slice(0, 10));
       if (!Array.isArray(raw.entries)) throw new Error("calorie data missing 'entries' array");
       let maxId = 0;
       for (const e of raw.entries) {
@@ -700,8 +735,25 @@
 
       setupRangeButtons("cal-cal-range", RANGES, RANGE_LABEL,
         () => calRange, v => { calRange = v; }, renderCharts);
+      setupRangeButtons("cal-protein-range", RANGES, RANGE_LABEL,
+        () => proteinRange, v => { proteinRange = v; }, renderCharts);
+      setupRangeButtons("cal-carbs-range", RANGES, RANGE_LABEL,
+        () => carbsRange, v => { carbsRange = v; }, renderCharts);
+      setupRangeButtons("cal-fat-range", RANGES, RANGE_LABEL,
+        () => fatRange, v => { fatRange = v; }, renderCharts);
       setupRangeButtons("cal-food-range", RANGES, RANGE_LABEL,
         () => foodRange, v => { foodRange = v; }, renderCharts);
+
+      if ($("today-cheat")) {
+        $("today-cheat").addEventListener("change", () => {
+          const arr = cheatDays();
+          const d = todayISO();
+          const i = arr.indexOf(d);
+          if ($("today-cheat").checked) { if (i === -1) arr.push(d); }
+          else { if (i !== -1) arr.splice(i, 1); }
+          refreshAll();
+        });
+      }
 
       initToolTabs(root, "cal-");
     },
@@ -709,6 +761,9 @@
       selectedDate = null;
       calRange = "today";
       foodRange = "today";
+      proteinRange = "today";
+      carbsRange = "today";
+      fatRange = "today";
       $("hist-from").value = "";
       $("hist-to").value = "";
       resetHistoryRange();
@@ -726,6 +781,8 @@
       const foodCount = Object.keys(D.foods).length;
       const daily = {};
       for (const e of D.entries) daily[e.date] = (daily[e.date] || 0) + totalForEntry(e);
+      delete daily[today];
+      for (const d of cheatDays()) delete daily[d];
       const dayTotals = Object.values(daily);
       const avg = dayTotals.length ? Math.round(dayTotals.reduce((s, n) => s + n, 0) / dayTotals.length) : 0;
       return [
