@@ -96,32 +96,16 @@ if (openItem) openItem.addEventListener("click", () => {
   const fi = document.getElementById("file-input");
   if (fi) fi.click();
 });
-document.getElementById("load-item").addEventListener("click", () => {
-  const fi = document.getElementById("file-input");
-  if (fi) fi.value = "";
-  const err = document.getElementById("load-err");
-  if (err) err.textContent = "";
-  document.getElementById("load-screen").classList.remove("hidden");
-  document.getElementById("app").classList.add("hidden");
-});
+const sampleItem = document.getElementById("sample-item");
+if (sampleItem) sampleItem.addEventListener("click", () => loadAndStart(buildAllSample(), DEFAULT_FILE));
 
-/* ---------------------- Load screen ---------------------- */
+/* ---------------------- Open a data file ---------------------- */
 const fileInput = document.getElementById("file-input");
-const dropZone = document.getElementById("drop-zone");
 if (fileInput) {
   fileInput.addEventListener("change", e => {
     const f = e.target.files[0];
     if (f) readFile(f);
-  });
-}
-if (dropZone) {
-  dropZone.addEventListener("dragover", ev => { ev.preventDefault(); dropZone.classList.add("drag"); });
-  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag"));
-  dropZone.addEventListener("drop", ev => {
-    ev.preventDefault();
-    dropZone.classList.remove("drag");
-    const f = ev.dataTransfer.files[0];
-    if (f) readFile(f);
+    e.target.value = "";
   });
 }
 
@@ -131,15 +115,13 @@ function readFile(file) {
     try {
       loadAndStart(JSON.parse(reader.result), file.name);
     } catch (err) {
-      document.getElementById("load-err").textContent = "Invalid JSON: " + err.message;
+      alert("Invalid JSON: " + err.message);
     }
   };
-  reader.onerror = () => document.getElementById("load-err").textContent = "Could not read file.";
+  reader.onerror = () => alert("Could not read file.");
   reader.readAsText(file);
 }
 
-document.getElementById("sample-link").addEventListener("click", () => loadAndStart(buildAllSample(), DEFAULT_FILE));
-document.getElementById("fresh-link").addEventListener("click", () => loadAndStart(buildEmptyAll(), DEFAULT_FILE));
 document.getElementById("save-btn").addEventListener("click", download);
 document.getElementById("new-file-btn").addEventListener("click", () => {
   if (!confirm("Start a new empty file? Unsaved changes are lost.")) return;

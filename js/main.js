@@ -61,14 +61,13 @@ function loadAndStart(data, name) {
   try {
     norm = normalizeFile(data);
   } catch (err) {
-    document.getElementById("load-err").textContent = "Could not read that file: " + err.message;
+    alert("Could not read that file: " + err.message);
     return;
   }
   filename = name || DEFAULT_FILE;
   for (const tool of TOOLS) applyToolData(tool, norm[tool.id]);
 
   document.getElementById("file-name").textContent = "(" + filename + ")";
-  document.getElementById("load-screen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   for (const tool of TOOLS) tool.reset();
   refreshAll();
@@ -78,6 +77,7 @@ function newEmptyFile() {
   for (const tool of TOOLS) applyToolData(tool, tool.empty());
   filename = DEFAULT_FILE;
   document.getElementById("file-name").textContent = "(new file)";
+  document.getElementById("app").classList.remove("hidden");
   for (const tool of TOOLS) tool.reset();
   refreshAll();
 }
@@ -141,16 +141,15 @@ function autoStart() {
     try {
       loadAndStart(bk.data, bk.filename || DEFAULT_FILE);
       return;
-    } catch (err) { /* fall through to load screen */ }
+    } catch (err) {
+      try { localStorage.removeItem(BACKUP_KEY); } catch (e) {}
+    }
   }
+  newEmptyFile();
 }
 
 (function boot() {
   buildToolSwitcher("toolbar");
   for (const tool of TOOLS) tool.setup();
-  if (!readBackup()) {
-    document.getElementById("load-screen").classList.remove("hidden");
-    return;
-  }
   autoStart();
 })();

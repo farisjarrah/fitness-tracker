@@ -18,22 +18,6 @@
 </head>
 <body>
 
-<!-- ================= LOAD SCREEN ================= -->
-<div id="load-screen">
-  <div class="load-box">
-    <h1>Fitness Tracker</h1>
-    <p>Load your JSON data file to get started.</p>
-    <label class="drop" id="drop-zone">
-      <input type="file" id="file-input" accept=".json">
-      <strong>Click to choose a file</strong><br>
-      or drop it here
-    </label>
-    <div id="load-err"></div>
-    <span id="sample-link">No file yet? Download a sample to try it</span><br><br>
-    <button class="btn" id="fresh-link">Or start from scratch (empty file)</button>
-  </div>
-</div>
-
 <!-- ================= APP ================= -->
 <div id="app" class="hidden">
   <header class="topbar">
@@ -43,11 +27,12 @@
       <div class="menu-wrap">
         <button class="menu-btn" id="menu-btn" title="Menu">☰</button>
         <div class="menu" id="menu">
-          <button class="menu-item" id="load-item" title="Go back to the load screen to pick a different file">Back to load screen…</button>
+          <button class="menu-item" id="sample-item" title="Load a demo dataset to explore the app">Load sample data…</button>
           <button class="menu-item" id="save-btn" title="Download your data as a backup file">Save backup file…</button>
           <button class="menu-item" id="open-item" title="Open a JSON data file (e.g. from iCloud)">Open a data file…</button>
           <button class="menu-item danger" id="new-file-btn" title="Start over with a fresh empty file">New file</button>
         </div>
+        <input type="file" id="file-input" accept=".json" style="display:none">
       </div>
     </div>
   </header>

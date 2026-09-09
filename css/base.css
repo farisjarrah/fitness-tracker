@@ -41,43 +41,6 @@ body {
 }
 .hidden, [hidden] { display: none !important; }
 
-/* ---------- Load screen ---------- */
-#load-screen {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.load-box {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 40px;
-  max-width: 420px;
-  width: 100%;
-  text-align: center;
-}
-.load-box h1 { margin: 0 0 6px; font-size: 26px; }
-.load-box p { color: var(--muted); margin: 0 0 24px; }
-.load-box label.drop {
-  display: block;
-  border: 2px dashed var(--border);
-  border-radius: 10px;
-  padding: 32px 20px;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.load-box label.drop:hover, .load-box label.drop.drag {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.load-box label.drop input { display: none; }
-#sample-link { display: block; margin-top: 18px; color: var(--accent); cursor: pointer; font-size: 14px; }
-#sample-link:hover { text-decoration: underline; }
-#load-err { color: var(--danger); margin-top: 12px; font-size: 14px; min-height: 18px; }
-
 /* ---------- App shell ---------- */
 #app { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
 header.topbar {
