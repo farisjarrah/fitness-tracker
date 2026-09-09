@@ -483,7 +483,10 @@
       syncRangeTabs("rn-mile-gran", mileGran);
       return;
     }
-    const labelFn = mileGran === "week" ? (k => "w/o " + k.slice(5)) : (mileGran === "month" ? (k => MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1]) : (k => k.slice(5)));
+    const labelFn = i => {
+      const k = keys[i] || "";
+      return mileGran === "week" ? "w/o " + k.slice(5) : (mileGran === "month" ? MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1] : k.slice(5));
+    };
     let cum = 0;
     const points = [];
     for (let i = 0; i < keys.length; i++) {
@@ -525,7 +528,10 @@
       syncRangeTabs("rn-shoe-chart-gran", shoeGran);
       return;
     }
-    const labelFn = shoeGran === "week" ? (k => "w/o " + k.slice(5)) : (shoeGran === "month" ? (k => MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1]) : (k => k.slice(5)));
+    const labelFn = i => {
+      const k = keys[i] || "";
+      return shoeGran === "week" ? "w/o " + k.slice(5) : (shoeGran === "month" ? MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1] : k.slice(5));
+    };
     // per-shoe cumulative series (meters accumulated per bucket index)
     const shoeTot = {};
     const shoeCum = {};
