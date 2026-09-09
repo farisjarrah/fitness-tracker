@@ -15,8 +15,7 @@ deleting an item updates everywhere it's used. Charts use month‑/year‑/custo
 
 ## Usage
 
-Hosted on GitHub Pages: **https://farisjarrah.github.io/fitness-tracker/** (once Pages is
-enabled, see below). Or just save the folder and open `index.html` in a browser locally.
+Hosted on GitHub Pages: **https://farisjarrah.github.io/fitness-tracker/** . Or just save the folder and open `index.html` in a browser locally.
 
 Even on GitHub Pages **no data is transmitted anywhere** — the page is pure static files.
 You open your own data JSON from local/cloud storage of your choice; the app never sends it
@@ -91,4 +90,3 @@ This was vibecoded using the free OpenCode Big Pickle AI Model 09/2026.
 
 ## Screenshots
 
-Preview images will be added here once Pages is live.
