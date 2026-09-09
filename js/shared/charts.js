@@ -137,13 +137,17 @@ function renderLineChart(boxId, sumId, series, opts) {
     if (o.targetValue && o.targetValue > maxY) maxY = o.targetValue;
   }
   maxY = niceTicks(maxY)[3] || maxY;
-  const padX = 28, padTop = 16, padBottom = 30, padRight = 30;
+  const ticks = niceTicks(maxY);
+  // Left padding sized to the widest y-label so labels don't clip.
+  const yLabel = yFormat(ticks[3]);
+  const padX = Math.max(30, yLabel.length * 7 + 12);
+  const padTop = 16, padBottom = 30;
+  const padRight = Math.max(30, Math.ceil(((xFormat(maxX) || "").length * 6) / 2) + 8);
   const W = 640, H = 220;
   const iw = W - padX - padRight, ih = H - padTop - padBottom;
   const toX = x => padX + (maxX <= 1 ? 0 : (x / maxX) * iw);
   const toY = y => padTop + ih - (maxY > 0 ? (y / maxY) * ih : 0);
 
-  const ticks = niceTicks(maxY);
   let yTicks = "";
   for (const t of ticks) {
     yTicks += `<text x="${padX - 6}" y="${toY(t) + 4}" text-anchor="end" class="lc-tick">${yFormat(t)}</text>`;
@@ -177,6 +181,15 @@ function renderLineChart(boxId, sumId, series, opts) {
     }
   }
 
+  const legend = series
+    .filter(s => !s.dashed && s.points && s.points.length)
+    .map(s =>
+      `<span class="lc-legend-item">
+        <i class="lc-legend-swatch" style="background:${s.color || "var(--accent)"}"></i>
+        <span class="lc-legend-label">${esc(s.label)}</span>
+      </span>`)
+    .join("");
+
   box.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" class="line-chart-svg" role="img" aria-label="line chart">
       <line x1="${padX}" y1="${padTop}" x2="${padX}" y2="${padTop + ih}" stroke="var(--grid)"/>
@@ -185,6 +198,7 @@ function renderLineChart(boxId, sumId, series, opts) {
       ${xTicks}
       ${polylines}
     </svg>
+    ${legend ? `<div class="line-chart-legend">${legend}</div>` : ""}
     ${o.endLabel ? `<div class="line-chart-meta">${o.endLabel}</div>` : ""}`;
   if (sum) sum.textContent = o.summary || "";
 }

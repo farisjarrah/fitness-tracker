@@ -73,25 +73,43 @@
   }
 
   function saveSettings() {
-    const h = numOrNull($("height").value);
-    D.heightCm = h != null ? Math.round(hToCm(h)) : null;
-    const t = targets();
-    t.calories = numOrNull($("calories").value);
-    t.protein = numOrNull($("protein").value);
-    t.carbs = numOrNull($("carbs").value);
-    t.fat = numOrNull($("fat").value);
-    const wv = numOrNull($("water").value);
-    t.waterMl = wv != null ? Math.round(watToMl(wv)) : null;
-    const mv = numOrNull($("mileage").value);
-    t.weeklyMileageM = mv != null ? Math.round(milToM(mv)) : null;
-    const wc = t.weeklyClimbs || (t.weeklyClimbs = {});
-    wc.bouldering = $("cl-boulder").value === "" ? null : parseInt($("cl-boulder").value, 10);
-    wc.topRope = $("cl-toprope").value === "" ? null : parseInt($("cl-toprope").value, 10);
-    wc.lead = $("cl-lead").value === "" ? null : parseInt($("cl-lead").value, 10);
-    if (isNaN(wc.bouldering)) wc.bouldering = null;
-    if (isNaN(wc.topRope)) wc.topRope = null;
-    if (isNaN(wc.lead)) wc.lead = null;
-    refreshAll();
+    try {
+      const h = numOrNull($("height").value);
+      D.heightCm = h != null ? Math.round(hToCm(h)) : null;
+      const t = targets();
+      t.calories = numOrNull($("calories").value);
+      t.protein = numOrNull($("protein").value);
+      t.carbs = numOrNull($("carbs").value);
+      t.fat = numOrNull($("fat").value);
+      const wv = numOrNull($("water").value);
+      t.waterMl = wv != null ? Math.round(watToMl(wv)) : null;
+      const mv = numOrNull($("mileage").value);
+      t.weeklyMileageM = mv != null ? Math.round(milToM(mv)) : null;
+      const wc = t.weeklyClimbs || (t.weeklyClimbs = {});
+      wc.bouldering = $("cl-boulder").value === "" ? null : parseInt($("cl-boulder").value, 10);
+      wc.topRope = $("cl-toprope").value === "" ? null : parseInt($("cl-toprope").value, 10);
+      wc.lead = $("cl-lead").value === "" ? null : parseInt($("cl-lead").value, 10);
+      if (isNaN(wc.bouldering)) wc.bouldering = null;
+      if (isNaN(wc.topRope)) wc.topRope = null;
+      if (isNaN(wc.lead)) wc.lead = null;
+      refreshAll();
+      flashSaved(true);
+    } catch (err) {
+      console.error("[fit] saveSettings() threw:", err);
+      flashSaved(false);
+    }
+  }
+  function flashSaved(ok) {
+    const btn = $("settings-form").querySelector("button[type=submit]");
+    const old = btn.textContent;
+    btn.textContent = ok ? "Saved ✓" : "Save failed";
+    btn.classList.add(ok ? "btn-ok" : "btn-err");
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = old;
+      btn.classList.remove("btn-ok", "btn-err");
+      btn.disabled = false;
+    }, 1600);
   }
 
   function wireUnitSwitch(selId, prefKey, inputId) {

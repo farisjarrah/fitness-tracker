@@ -464,6 +464,50 @@
     return map;
   }
 
+  /* Builds a continuous, time-bounded bucket list for a range+granularity
+     (mirrors the calorie charts), so sparse data doesn't collapse the
+     x-axis to a single point or squash the target line. */
+  function gridKeys(range, gran) {
+    const tISO = todayISO();
+    const td = parseDate(tISO);
+    let fromISO, toISOStr;
+    if (range === "week") {
+      // span the whole Mon–Sun week like the calorie charts
+      fromISO = mondayOf(tISO);
+      const sunday = parseDate(fromISO);
+      sunday.setDate(sunday.getDate() + 6);
+      toISOStr = toISO(sunday);
+    } else if (range === "7d") {
+      const s = new Date(td); s.setDate(s.getDate() - 6);
+      fromISO = toISO(s); toISOStr = tISO;
+    } else if (range === "30d") {
+      const s = new Date(td); s.setDate(s.getDate() - 29);
+      fromISO = toISO(s); toISOStr = tISO;
+    } else if (range === "year") {
+      fromISO = tISO.slice(0, 4) + "-01-01"; toISOStr = tISO;
+    } else { // all — from the first activity to today
+      fromISO = dataDateBounds().min; toISOStr = tISO;
+    }
+    const keys = [];
+    if (gran === "day") {
+      for (let d = parseDate(fromISO); toISO(d) <= toISOStr; d.setDate(d.getDate() + 1)) keys.push(toISO(d));
+    } else if (gran === "week") {
+      const endKW = weekKey(toISOStr);
+      for (let d = parseDate(weekKey(fromISO)); toISO(d) <= endKW; d.setDate(d.getDate() + 7)) keys.push(toISO(d));
+    } else { // month
+      let y = parseInt(fromISO.slice(0, 4), 10), m = parseInt(fromISO.slice(5, 7), 10);
+      const endM = toISOStr.slice(0, 7);
+      for (;;) {
+        const cur = String(y).padStart(4, "0") + "-" + String(m).padStart(2, "0");
+        if (cur > endM) break;
+        keys.push(cur);
+        m++; if (m > 12) { m = 1; y++; }
+      }
+    }
+    const days = Math.max(1, Math.round((parseDate(toISOStr) - parseDate(fromISO)) / 86400000) + 1);
+    return { keys, days };
+  }
+
   function renderCharts() {
     renderMileageOverTime();
     renderShoeChart();
@@ -473,9 +517,11 @@
   }
 
   function renderMileageOverTime() {
-    const bounds = rangeBounds(mileRange);
-    const map = bucketByTime(mileRange, D.entries, mileGran);
-    const keys = Object.keys(map).sort();
+    // "This week" always shows the Mon–Sun span (day grid), like the calorie charts.
+    const gran = mileRange === "week" ? "day" : mileGran;
+    const grid = gridKeys(mileRange, gran);
+    const map = bucketByTime(mileRange, D.entries, gran);
+    const keys = grid.keys;
     const unitL = distLabel();
     if (keys.length === 0) {
       renderLineChart("rn-mile-chart", "rn-mile-summary", [], { summary: "No runs in this range." });
@@ -485,29 +531,27 @@
     }
     const labelFn = i => {
       const k = keys[i] || "";
-      return mileGran === "week" ? "w/o " + k.slice(5) : (mileGran === "month" ? MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1] : k.slice(5));
+      return gran === "week" ? "w/o " + k.slice(5) : (gran === "month" ? MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1] : k.slice(5));
     };
-    let cum = 0;
-    const points = [];
-    for (let i = 0; i < keys.length; i++) {
-      const tot = map[keys[i]].reduce((s, e) => s + (e.distanceM || 0), 0);
-      cum += tot;
-      points.push([i, mToNum(cum)]);
-    }
+    let cumM = 0;
+    const points = keys.map((k, i) => {
+      for (const e of (map[k] || [])) cumM += (e.distanceM || 0);
+      return [i, mToNum(cumM)];
+    });
     const series = [{ label: "cumulative " + distLabel(), color: "var(--accent)", points }];
-    let summary = `${RANGE_LABEL[mileRange]} · ${GRAN_LABEL[mileGran]}: ${mToNum(cum).toFixed(2)} ${unitL} cumulative`;
+    const cumDisp = mToNum(cumM);
+    let summary = `${RANGE_LABEL[mileRange]} · ${GRAN_LABEL[gran]}: ${cumDisp.toFixed(2)} ${unitL} cumulative`;
     const wkTgtM = (window.DB.health && window.DB.health.targets) ? (Number(window.DB.health.targets.weeklyMileageM) || 0) : 0;
     if (wkTgtM > 0) {
-      const wkTgt = mToNum(wkTgtM);
-      const perBucket = mileGran === "week" ? 1 : (mileGran === "month" ? 4.345 : 1 / 7);
-      const tgtTotal = wkTgtM * perBucket * keys.length;
+      const tgtTotal = (mToNum(wkTgtM) / 7) * grid.days;
+      const lastX = Math.max(0, keys.length - 1);
       series.push({
         label: "target",
         color: "var(--danger)",
         dashed: true,
-        points: [[0, 0], [keys.length - 1, mToNum(tgtTotal)]]
+        points: [[0, tgtTotal], [lastX, tgtTotal]]
       });
-      summary += ` · weekly target ${fmtDist(wkTgtM, 1)} ${unitL}`;
+      summary += ` · weekly target ${fmtDist(wkTgtM, 1)} ${unitL} ≈ ${tgtTotal.toFixed(1)} ${unitL} this period`;
     }
     renderLineChart("rn-mile-chart", "rn-mile-summary", series, {
       xFormat: labelFn,
@@ -519,8 +563,10 @@
   }
 
   function renderShoeChart() {
-    const source = bucketByTime(shoeRange, D.entries, shoeGran);
-    const keys = Object.keys(source).sort();
+    const gran = shoeRange === "week" ? "day" : shoeGran;
+    const grid = gridKeys(shoeRange, gran);
+    const source = bucketByTime(shoeRange, D.entries, gran);
+    const keys = grid.keys;
     const unitL = distLabel();
     if (keys.length === 0) {
       renderLineChart("rn-shoe-chart", "rn-shoe-chart-summary", [], { summary: "No runs in this range." });
@@ -530,7 +576,7 @@
     }
     const labelFn = i => {
       const k = keys[i] || "";
-      return shoeGran === "week" ? "w/o " + k.slice(5) : (shoeGran === "month" ? MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1] : k.slice(5));
+      return gran === "week" ? "w/o " + k.slice(5) : (gran === "month" ? MONTH_NAMES[parseInt(k.slice(5, 7), 10) - 1] : k.slice(5));
     };
     // per-shoe cumulative series (meters accumulated per bucket index)
     const shoeTot = {};
@@ -559,7 +605,7 @@
       const c = shoeCum[name] || [];
       const points = [];
       for (let i = 0; i < keys.length; i++) points.push([i, c[i] != null ? c[i] : 0]);
-      return { label: name, color: PALETTE[sid % PALETTE.length], points };
+      return { label: entryShoeName(name), color: PALETTE[sid % PALETTE.length], points };
     });
     const totalNum = mToNum(grandTotal);
     renderLineChart("rn-shoe-chart", "rn-shoe-chart-summary", series, {
