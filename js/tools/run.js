@@ -554,7 +554,12 @@
     const shoeOrder = Object.keys(shoeTot).sort((a, b) => shoeTot[b] - shoeTot[a]);
     const series = shoeOrder.map(name => {
       const sid = shoeOrder.indexOf(name);
-      return { label: name, color: PALETTE[sid % PALETTE.length], points: (shoeCum[name] || []).map((v, i) => [i, v]) };
+      // Densely map every bucket index -> cumulative km, zero-filling before
+      // a shoe's first use (a sparse array would yield undefined points).
+      const c = shoeCum[name] || [];
+      const points = [];
+      for (let i = 0; i < keys.length; i++) points.push([i, c[i] != null ? c[i] : 0]);
+      return { label: name, color: PALETTE[sid % PALETTE.length], points };
     });
     const totalNum = mToNum(grandTotal);
     renderLineChart("rn-shoe-chart", "rn-shoe-chart-summary", series, {

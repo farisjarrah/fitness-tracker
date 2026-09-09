@@ -129,9 +129,10 @@ function renderLineChart(boxId, sumId, series, opts) {
 
   let maxX = 0, maxY = 0;
   for (const s of series) {
-    for (const [x, y] of (s.points || [])) {
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
+    for (const p of (s.points || [])) {
+      if (!Array.isArray(p) || p.length < 2) continue;
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] > maxY) maxY = p[1];
     }
     if (o.targetValue && o.targetValue > maxY) maxY = o.targetValue;
   }
@@ -161,17 +162,18 @@ function renderLineChart(boxId, sumId, series, opts) {
   let polylines = "";
   for (const s of series) {
     if (!s.points || s.points.length === 0) continue;
-    const pts = s.points.map(([x, y]) => `${toX(x).toFixed(1)},${toY(y).toFixed(1)}`).join(" ");
+    const good = s.points.filter(p => Array.isArray(p) && p.length >= 2);
+    const pts = good.map(p => `${toX(p[0]).toFixed(1)},${toY(p[1]).toFixed(1)}`).join(" ");
     const dash = s.dashed ? ' stroke-dasharray="6 4"' : "";
     polylines += `<polyline class="lc-line" fill="none" stroke="${s.color || "var(--accent)"}" stroke-width="2.5" points="${pts}"${dash}>`;
     polylines += `<title>${esc(s.label)}</title></polyline>`;
-    const last = s.points[s.points.length - 1];
+    const last = good[good.length - 1];
     if (last && !s.dashed) {
       polylines += `<circle class="lc-dot" cx="${toX(last[0])}" cy="${toY(last[1])}" r="4" fill="${s.color || "var(--accent)"}"><title>${esc(s.label)}: ${yFormat(last[1])}</title></circle>`;
     }
-    for (const [x, y] of s.points) {
-      if (y == null) continue;
-      polylines += `<circle class="lc-point" cx="${toX(x)}" cy="${toY(y)}" r="6" fill="transparent"><title>${esc(s.label)} ${xFormat(x)}: ${yFormat(y)}</title></circle>`;
+    for (const p of good) {
+      if (p[1] == null) continue;
+      polylines += `<circle class="lc-point" cx="${toX(p[0])}" cy="${toY(p[1])}" r="6" fill="transparent"><title>${esc(s.label)} ${xFormat(p[0])}: ${yFormat(p[1])}</title></circle>`;
     }
   }
 

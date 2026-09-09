@@ -89,13 +89,13 @@
     const push = (key, e) => { (map[key] = map[key] || []).push(e); };
     for (const e of D.entries) {
       if (range === "today") {
-        if (e.date === today) push(e.date, e);
+        if (e.date === today) push(String(parseInt(e.time || "0", 10) || 0).padStart(2, "0") + ":00", e);
       } else if (range === "week") {
         if (e.date >= mondayOf(today) && e.date <= sundayOf(today)) push(e.date, e);
       } else if (range === "month") {
         if (e.date.slice(0, 7) === today.slice(0, 7)) push(e.date, e);
       } else if (range === "year") {
-        if (e.date.slice(0, 4) === today.slice(0, 4)) push(e.date.slice(0, 7), e);
+        if (e.date.slice(0, 4) === today.slice(0, 4)) push(e.date, e);
       } else { // all
         push(e.date.slice(0, 7), e);
       }
@@ -324,30 +324,69 @@
   }
 
   /* -------- Charts -------- */
-  /* Builds cumulative daily series from entries filtered by range.
-     Returns { points:[[idx, cum], ...], labels:[[idx, date]], totalEntries }. */
-  function cumulativeSeries(range, valFn) {
+  /* Fixed, continuous time grid for a range so the x-axis always spans the
+     whole period (hourly today, daily this week/month/year, monthly all-time)
+     instead of only the days that happen to have entries. */
+  function chartGrid(range) {
     const today = todayISO();
-    const buckets = bucketEntries(range);
-    const labels = Object.keys(buckets).sort();
-    if (range === "today") labels[0] = today;
-    if (range === "year") labels.sort(); // already month keys
-    const points = [];
-    let cum = 0;
-    for (let i = 0; i < labels.length; i++) {
-      const k = labels[i];
-      const key = range === "year" ? k.slice(0, 7) : k;
-      const bucket = range === "today" ? (buckets[today] || []) : (buckets[key] || []);
-      for (const e of bucket) cum += valFn(e);
-      points.push([i, cum]);
+    const cells = [];
+    const add = (key, label) => cells.push({ key, label });
+    if (range === "today") {
+      for (let h = 0; h < 24; h++) {
+        add(String(h).padStart(2, "0") + ":00", (h % 12 === 0 ? 12 : h % 12) + (h < 12 ? " AM" : " PM"));
+      }
+    } else if (range === "week") {
+      const mon = parseDate(mondayOf(today));
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+        add(toISO(d), WEEKDAY_NAMES[d.getDay()] + " " + (d.getMonth() + 1) + "/" + d.getDate());
+      }
+    } else if (range === "month") {
+      const y = parseInt(today.slice(0, 4), 10), m = parseInt(today.slice(5, 7), 10);
+      const n = new Date(y, m, 0).getDate();
+      for (let d = 1; d <= n; d++) {
+        add(String(y).padStart(4, "0") + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0"), String(d));
+      }
+    } else if (range === "year") {
+      const y = parseInt(today.slice(0, 4), 10);
+      const m = parseInt(today.slice(5, 7), 10);
+      const end = parseInt(today.slice(8, 10), 10);
+      for (let d = new Date(y, 0, 1); d <= new Date(y, m - 1, end); d.setDate(d.getDate() + 1)) {
+        add(toISO(d), (d.getMonth() + 1) + "/" + d.getDate());
+      }
+    } else { // all — monthly from first entry month through the current month
+      let minMonth = null;
+      for (const e of D.entries) {
+        const k = (e.date || "").slice(0, 7);
+        if (k && (!minMonth || k < minMonth)) minMonth = k;
+      }
+      const start = new Date(parseInt((minMonth || today).slice(0, 4), 10), parseInt((minMonth || today).slice(5, 7), 10) - 1, 1);
+      const now = new Date();
+      for (let cur = start; cur <= now; cur.setMonth(cur.getMonth() + 1)) {
+        add(toISO(cur).slice(0, 7), MONTH_NAMES[cur.getMonth()] + " " + String(cur.getFullYear()).slice(2));
+      }
     }
-    return { points, labels, count: labels.length };
+    return cells;
   }
 
-  /* Adds a dotted target line to an existing cumulative series if target set. */
+  /* Builds a cumulative series over the fixed time grid. */
+  function cumulativeSeries(range, valFn) {
+    const buckets = bucketEntries(range);
+    const cells = chartGrid(range);
+    const points = [];
+    let cum = 0;
+    for (let i = 0; i < cells.length; i++) {
+      for (const e of (buckets[cells[i].key] || [])) cum += valFn(e);
+      points.push([i, cum]);
+    }
+    return { points, labels: cells.map(c => c.label), count: cells.length };
+  }
+
+  /* Adds a dotted target line (flat at the projected total) if target set. */
   function targetSeries(range, target, count) {
     if (!target || !(target > 0)) return null;
-    const t = range === "today" ? target : target * count;
+    const per = range === "all" ? 30.4375 : 1; // approximate days per monthly bucket
+    const t = target * per * count;
     return [{ label: "target", color: "var(--danger)", dashed: true, points: [[0, t], [Math.max(0, count - 1), t]] }];
   }
 
@@ -362,12 +401,7 @@
 
   function renderLineCal(range, rangeBoxId, boxId, sumId, valFn, target, label) {
     const { points, labels, count } = cumulativeSeries(range, valFn);
-    const xFormat = range === "today"
-      ? k => k
-      : (range === "week" ? k => WEEKDAY_NAMES[parseDate(labels[k]).getDay()]
-        : (range === "month" ? k => String(parseDate(labels[k]).getDate())
-          : (range === "year" || range === "all" ? k => MONTH_NAMES[parseInt(labels[k].slice(5, 7), 10) - 1]
-            : k => labels[k])));
+    const xFormat = i => labels[i];
     const unit = label === "Calories" ? " cal" : " g";
     const series = [{ label, color: "var(--accent)", points }];
     const ts = targetSeries(range, target, count);
