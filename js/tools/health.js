@@ -44,6 +44,9 @@
   function emptyTargets() {
     return { calories: null, protein: null, carbs: null, fat: null, waterMl: null, weeklyMileageM: null, weeklyClimbs: { bouldering: null, topRope: null, lead: null } };
   }
+  const MOOD_LABEL = { 1: "terrible", 2: "awful", 3: "bad", 4: "meh", 5: "OK", 6: "decent", 7: "good", 8: "great", 9: "excellent", 10: "fantastic" };
+  const moodColor = m => m <= 3 ? "#dc2626" : (m >= 8 ? "#16a34a" : "#d97706");
+  const moodBadge = m => `<span class="mood-badge" style="background:${moodColor(m)}">${m}</span>${MOOD_LABEL[m] ? " " + MOOD_LABEL[m] : ""}`;
   function numOrNull(v) {
     const n = parseFloat(v);
     return isFinite(n) && n > 0 ? n : null;
@@ -136,6 +139,9 @@
   function sortedWeight() {
     return D.weight.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "") || a.id - b.id);
   }
+  function sortedMood() {
+    return D.mood.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "") || a.id - b.id);
+  }
   function addWeight() {
     const date = $("w-date").value || todayISO();
     const time = $("w-time").value || "";
@@ -148,18 +154,66 @@
     $("w-value").value = "";
     refreshAll();
   }
+  function addMood() {
+    const date = $("m-date").value || todayISO();
+    const time = $("m-time").value || "";
+    const mood = parseInt($("m-value").value, 10);
+    if (!(mood >= 1 && mood <= 10)) return;
+    const note = $("m-note").value.trim();
+    let maxId = 0;
+    for (const m of D.mood) if (m.id > maxId) maxId = m.id;
+    D.mood.push({ id: ++maxId, date, time, mood: Math.round(mood), note });
+    $("m-note").value = "";
+    refreshAll();
+  }
   function delWeight(id) {
     const i = D.weight.findIndex(w => w.id === id);
     if (i !== -1) D.weight.splice(i, 1);
     refreshAll();
   }
+  function delMood(id) {
+    const i = D.mood.findIndex(m => m.id === id);
+    if (i !== -1) D.mood.splice(i, 1);
+    refreshAll();
+  }
   window.ht_delWeight = delWeight;
+  window.ht_delMood = delMood;
 
   function weightDisplay(kg, dec) {
     return Number(kgToW(kg).toFixed(dec == null ? 1 : dec)) + " " + weightUnit();
   }
 
   /* -------- render -------- */
+  function bmiValue(kg) {
+    if (!D.heightCm) return null;
+    const m = D.heightCm / 100;
+    return kg / (m * m);
+  }
+  const bmiCategory = bmi => bmi < 18.5 ? "underweight" : bmi < 25 ? "normal" : bmi < 30 ? "overweight" : "obese";
+
+  function renderHealthStats() {
+    const box = $("stats");
+    const log = sortedWeight();
+    const latest = log.length ? log[log.length - 1] : null;
+    const parts = [];
+    if (latest) parts.push(`latest <b>${weightDisplay(latest.kg)}</b>`);
+    if (D.heightCm) {
+      parts.push(`${cmToH(D.heightCm).toFixed(1)} ${heightUnit()} tall`);
+      if (latest) {
+        const bmi = bmiValue(latest.kg);
+        if (bmi) parts.push(`BMI <b>${bmi.toFixed(1)}</b> (${bmiCategory(bmi)})`);
+      }
+    }
+    const moods = sortedMood();
+    if (moods.length) {
+      const last = moods[moods.length - 1];
+      parts.push(`mood ${moodBadge(last.mood)}${last.note ? " · " + esc(last.note) : ""}`);
+    }
+    box.innerHTML = parts.length
+      ? `<div class="ht-stats-row">${parts.map(p => `<span class="ht-stat">${p}</span>`).join("")}</div>`
+      : '<p class="no-data">No health data yet.</p>';
+  }
+
   function renderWeightChart() {
     const dateBox = $("w-chart");
     const sum = $("w-summary");
@@ -178,15 +232,23 @@
     const last = log[log.length - 1];
     const prev = log.length > 1 ? log[log.length - 2].kg - last.kg : 0;
     const wUnit = weightUnit();
-    const sumTxt = log.length + " weigh-ins · " + fmtDate(start) + " → " + fmtDate(end) +
+    let sumTxt = log.length + " weigh-ins · " + fmtDate(start) + " → " + fmtDate(end) +
       " · latest " + Number(kgToW(last.kg).toFixed(1)) + " " + wUnit +
       (log.length > 1 ? (prev >= 0 ? " · Δ +" : " · Δ −") + Math.abs(kgToW(prev)).toFixed(1) + " " + wUnit : "");
+    const bmi = bmiValue(last.kg);
+    if (bmi) sumTxt += " · BMI " + bmi.toFixed(1);
 
     const weightW = weightUnit();
+    // Tight y-window around the data so small weigh-in changes are visible.
+    const kgs = log.map(w => kgToW(w.kg));
+    const lo = Math.min(...kgs), hi = Math.max(...kgs);
+    const yPad = Math.max(1, Number(((hi - lo) * 0.5).toFixed(1)));
     renderLineChart("ht-w-chart", "ht-w-summary", series, {
       xFormat: i => (log[i] ? log[i].date.slice(5).replace("-", "/") + (log[i].time ? " " + log[i].time.slice(0, 5) : "") : ""),
       yFormat: v => Number(v).toFixed(1) + " " + weightW,
-      summary: sumTxt
+      summary: sumTxt,
+      yBase: Number((lo - yPad).toFixed(1)),
+      yMax: Number((hi + yPad).toFixed(1))
     });
   }
 
@@ -218,15 +280,39 @@
     </table>`;
   }
 
+  function renderMoodLog() {
+    const box = $("m-log");
+    const log = sortedMood();
+    if (log.length === 0) {
+      box.innerHTML = '<p class="no-data">No moods logged yet.</p>';
+      return;
+    }
+    const rows = [];
+    for (let i = log.length - 1; i >= 0; i--) {
+      const m = log[i];
+      rows.push(`<tr>
+        <td>${fmtDate(m.date)}</td>
+        <td>${m.time ? m.time.slice(0, 5) : "—"}</td>
+        <td>${moodBadge(m.mood)}</td>
+        <td>${m.note ? esc(m.note) : ""}</td>
+        <td class="num"><button class="btn small danger" onclick="ht_delMood(${m.id})">Delete</button></td>
+      </tr>`);
+    }
+    box.innerHTML = `<table>
+      <thead><tr><th>Date</th><th>Time</th><th>Mood</th><th>Note</th><th></th></tr></thead>
+      <tbody>${rows.join("")}</tbody>
+    </table>`;
+  }
+
   /* -------- registerTool contract -------- */
   window.healthTool = {
     id: "health",
     label: "Health",
     emoji: "⚕️",
     rootId: "tool-health",
-    empty() { return { heightCm: null, weight: [], targets: emptyTargets() }; },
+    empty() { return { heightCm: null, weight: [], mood: [], targets: emptyTargets() }; },
     normalize(raw) {
-      const db = { heightCm: null, weight: [], targets: emptyTargets() };
+      const db = { heightCm: null, weight: [], mood: [], targets: emptyTargets() };
       if (typeof raw !== "object" || raw === null) return db;
       const h = Number(raw.heightCm);
       db.heightCm = isFinite(h) && h > 0 ? Math.round(h) : null;
@@ -247,6 +333,25 @@
           });
         }
         db.weight.sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+      }
+      if (Array.isArray(raw.mood)) {
+        let maxId = 0;
+        for (const m of raw.mood) {
+          const pid = parseInt(m.id, 10);
+          if (pid > maxId) maxId = pid;
+        }
+        for (const m of raw.mood) {
+          const val = parseInt(m.mood, 10);
+          if (!(val >= 1 && val <= 10)) continue;
+          db.mood.push({
+            id: parseInt(m.id, 10) || (++maxId),
+            date: String(m.date || todayISO()),
+            time: String(m.time || ""),
+            mood: val,
+            note: String(m.note || "")
+          });
+        }
+        db.mood.sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
       }
       if (raw.targets && typeof raw.targets === "object") {
         const t = raw.targets;
@@ -284,6 +389,18 @@
           kg: Math.round((base + (ago % 3) * 0.3) * 10) / 10
         });
       }
+      let mid = 0;
+      for (let ago = 119; ago >= 0; ago -= 10) {
+        const d = new Date();
+        d.setDate(d.getDate() - ago);
+        db.mood.push({
+          id: ++mid,
+          date: toISO(d),
+          time: (ago % 20 === 0 ? "20:00" : "08:00"),
+          mood: 5 + ((ago % 5) - 2),
+          note: ""
+        });
+      }
       return db;
     },
     setup() {
@@ -291,9 +408,12 @@
 
       $("settings-form").addEventListener("submit", e => { e.preventDefault(); saveSettings(); });
       $("add-weight").addEventListener("submit", e => { e.preventDefault(); addWeight(); });
+      $("add-mood").addEventListener("submit", e => { e.preventDefault(); addMood(); });
       $("w-date").value = todayISO();
+      $("m-date").value = todayISO();
       const now = new Date();
-      $("w-time").value = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+      const nowHH = () => String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+      $("w-time").value = nowHH();
 
       wireUnitSwitch("height-unit", "fit-height-unit", "height");
       wireUnitSwitch("water-unit", "fit-water-unit", "water");
@@ -302,32 +422,46 @@
     reset() {
       $("w-value").value = "";
       $("w-date").value = todayISO();
+      $("m-date").value = todayISO();
+      $("m-note").value = "";
       const now = new Date();
-      $("w-time").value = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+      const nowHH = () => String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+      $("w-time").value = nowHH();
+      $("m-time").value = nowHH();
     },
     render() {
       if (settingsSignature() !== lastSettingsSig) {
         renderSettingsInputs();
         lastSettingsSig = settingsSignature();
       }
+      renderHealthStats();
       renderWeightChart();
       renderWeightLog();
+      renderMoodLog();
     },
     summary() {
       const log = sortedWeight();
       const latest = log.length ? log[log.length - 1] : null;
       const t = targets();
-      return [
-        { label: "height", value: D.heightCm ? `${cmToH(D.heightCm).toFixed(1)} ${heightUnit()}` : "—" },
-        { label: "current weight", value: latest ? weightDisplay(latest.kg) : "—" },
-        { label: "calorie target", value: t.calories ? t.calories + " kcal/day" : "—" }
-      ];
+      const moods = sortedMood();
+      const lastMood = moods.length ? moods[moods.length - 1].mood : null;
+      const out = [];
+      if (D.heightCm) out.push({ label: "height", value: `${cmToH(D.heightCm).toFixed(1)} ${heightUnit()}` });
+      if (latest) {
+        out.push({ label: "current weight", value: weightDisplay(latest.kg) });
+        const bmi = bmiValue(latest.kg);
+        if (bmi) out.push({ label: "BMI", value: bmi.toFixed(1) });
+      }
+      if (lastMood) out.push({ label: "mood", value: lastMood + "/10" });
+      if (t.calories) out.push({ label: "calorie target", value: t.calories + " kcal/day" });
+      return out;
     },
     recent(limit) {
-      return sortedWeight().slice(-limit).reverse().map(w => ({
-        date: w.date,
-        text: `weighed ${weightDisplay(w.kg)}`
-      }));
+      const items = [];
+      for (const w of sortedWeight().slice(-limit)) items.push({ date: w.date, text: `weighed ${weightDisplay(w.kg)}` });
+      for (const m of sortedMood().slice(-limit)) items.push({ date: m.date, text: `mood ${m.mood}/10${m.note ? " — " + m.note : ""}` });
+      items.sort((a, b) => b.date.localeCompare(a.date));
+      return items.slice(0, limit);
     }
   };
 

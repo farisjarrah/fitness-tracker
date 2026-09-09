@@ -219,6 +219,11 @@ tr:hover td { background: var(--accent-soft); }
 .btn-ok { background: var(--ok, #16a34a) !important; color: #fff !important; }
 .btn-err { background: var(--danger) !important; color: #fff !important; }
 
+.ht-stats-row { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.ht-stat { font-size: 13px; color: var(--muted); }
+.ht-stat b { color: var(--text); }
+.mood-badge { display: inline-block; min-width: 22px; text-align: center; padding: 1px 6px; border-radius: 999px; color: #fff; font-weight: 700; font-size: 12px; margin-right: 4px; }
+
 footer.note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
 
 /* ---------- Edit modals ---------- */

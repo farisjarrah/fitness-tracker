@@ -324,7 +324,7 @@
 <!-- HEALTH -->
   <section class="tool hidden" id="tool-health">
     <nav class="tabs">
-      <button class="tab active" data-view="weight">Weight log</button>
+      <button class="tab active" data-view="health">Health log</button>
       <button class="tab" data-view="settings">Settings</button>
     </nav>
 
@@ -420,10 +420,15 @@
       </p>
     </div>
 
-    <!-- WEIGHT LOG -->
-    <div class="view" id="ht-view-weight">
+    <!-- HEALTH LOG -->
+    <div class="view" id="ht-view-health">
       <div class="card">
-        <h2>Add weight</h2>
+        <h2>Health stats</h2>
+        <div id="ht-stats"><p class="no-data">No health data yet.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Log weight</h2>
         <form class="add-form" id="ht-add-weight">
           <div class="field">
             <label for="ht-w-date">Date</label>
@@ -449,6 +454,44 @@
       </div>
 
       <div class="card">
+        <h2>Log mood</h2>
+        <form class="add-form" id="ht-add-mood">
+          <div class="field">
+            <label for="ht-m-date">Date</label>
+            <input id="ht-m-date" type="date" style="width:140px">
+          </div>
+          <div class="field">
+            <label for="ht-m-time">Time</label>
+            <input id="ht-m-time" type="time" style="width:140px">
+          </div>
+          <div class="field">
+            <label for="ht-m-value">Mood</label>
+            <select id="ht-m-value" style="width:150px">
+              <option value="5" selected>5 · OK</option>
+              <option value="1">1 · terrible</option>
+              <option value="2">2 · awful</option>
+              <option value="3">3 · bad</option>
+              <option value="4">4 · meh</option>
+              <option value="6">6 · decent</option>
+              <option value="7">7 · good</option>
+              <option value="8">8 · great</option>
+              <option value="9">9 · excellent</option>
+              <option value="10">10 · fantastic</option>
+            </select>
+            <span class="unit">1 = bad · 10 = great</span>
+          </div>
+          <div class="field">
+            <label for="ht-m-note">Note</label>
+            <input id="ht-m-note" type="text" placeholder="optional" style="width:220px">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn primary">Log mood</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
         <h2>Weight over time</h2>
         <div class="chart-summary" id="ht-w-summary"></div>
         <div id="ht-w-chart"></div>
@@ -457,6 +500,11 @@
       <div class="card">
         <h2>Weight history</h2>
         <div id="ht-w-log"><p class="no-data">No weigh-ins logged yet.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Mood history</h2>
+        <div id="ht-m-log"><p class="no-data">No moods logged yet.</p></div>
       </div>
     </div>
   </section>

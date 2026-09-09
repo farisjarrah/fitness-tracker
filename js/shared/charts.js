@@ -127,30 +127,35 @@ function renderLineChart(boxId, sumId, series, opts) {
   const xFormat = o.xFormat || (k => String(k));
   const yFormat = o.yFormat || (v => formatTick(v));
 
-  let maxX = 0, maxY = 0;
+  let maxX = 0, dataMax = 0;
   for (const s of series) {
     for (const p of (s.points || [])) {
       if (!Array.isArray(p) || p.length < 2) continue;
       if (p[0] > maxX) maxX = p[0];
-      if (p[1] > maxY) maxY = p[1];
+      if (p[1] > dataMax) dataMax = p[1];
     }
-    if (o.targetValue && o.targetValue > maxY) maxY = o.targetValue;
+    if (o.targetValue && o.targetValue > dataMax) dataMax = o.targetValue;
   }
-  maxY = niceTicks(maxY)[3] || maxY;
-  const ticks = niceTicks(maxY);
+  // y-domain: fixed window via yBase/yMax, otherwise auto-snap to nice ticks.
+  const yBase = o.yBase != null ? o.yBase : 0;
+  const maxY = o.yMax != null ? o.yMax : (niceTicks(dataMax)[3] || dataMax);
+  const yRange = Math.max(1, maxY - yBase);
   // Left padding sized to the widest y-label so labels don't clip.
-  const yLabel = yFormat(ticks[3]);
+  const tickGap = niceTicks(yRange)[3] || yRange;
+  const tickVals = [yBase + tickGap / 3, yBase + (tickGap * 2) / 3, yBase + tickGap];
+  const yLabel = yFormat(tickVals[2]);
   const padX = Math.max(30, yLabel.length * 7 + 12);
   const padTop = 16, padBottom = 30;
   const padRight = Math.max(30, Math.ceil(((xFormat(maxX) || "").length * 6) / 2) + 8);
   const W = 640, H = 220;
   const iw = W - padX - padRight, ih = H - padTop - padBottom;
   const toX = x => padX + (maxX <= 1 ? 0 : (x / maxX) * iw);
-  const toY = y => padTop + ih - (maxY > 0 ? (y / maxY) * ih : 0);
+  const toY = y => padTop + ih - ((Math.min(Math.max(y, yBase), maxY) - yBase) / yRange) * ih;
 
+  const yTickVals = yBase > 0 ? [yBase, ...tickVals] : tickVals;
   let yTicks = "";
-  for (const t of ticks) {
-    yTicks += `<text x="${padX - 6}" y="${toY(t) + 4}" text-anchor="end" class="lc-tick">${yFormat(t)}</text>`;
+  for (const tv of yTickVals) {
+    yTicks += `<text x="${padX - 6}" y="${toY(tv) + 4}" text-anchor="end" class="lc-tick">${yFormat(tv)}</text>`;
   }
 
   let xTicks = "";
