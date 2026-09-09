@@ -14,6 +14,12 @@ const THEME_KEY = "fit-theme";
 const BACKUP_KEY = "fit-data-backup";
 const DEFAULT_FILE = "fitness-data.json";
 
+/* -------- Debug logging (turn off by setting window.DEBUG = false) -------- */
+window.DEBUG = true;
+function dbg(...args) {
+  if (window.DEBUG) console.log("[fit]", ...args);
+}
+
 /* -------- Dates -------- */
 function todayISO() { return toISO(new Date()); }
 

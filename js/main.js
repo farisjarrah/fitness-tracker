@@ -28,11 +28,27 @@ function applyToolData(tool, data) {
   Object.assign(cur, data);
 }
 
+/* Returns a small summary of a tool's data for debug logging. */
+function dbgCounts(id, d) {
+  const c = {};
+  if (d.runs) c.runs = Object.keys(d.runs).length;
+  if (d.shoes) c.shoes = Object.keys(d.shoes).length;
+  if (d.entries && typeof d.entries.length === "number") c.entries = d.entries.length;
+  if (d.routes) c.routes = Object.keys(d.routes).length;
+  if (d.climbs && typeof d.climbs.length === "number") c.climbs = d.climbs.length;
+  if (d.foods) c.foods = Object.keys(d.foods).length;
+  if (d.cheatDays && typeof d.cheatDays.length === "number") c.cheatDays = d.cheatDays.length;
+  if (d.weight && typeof d.weight.length === "number") c.weight = d.weight.length;
+  if (d.heightCm != null) c.height = d.heightCm;
+  return c;
+}
+
 /* Accepts a merged fitness file ({ calorie, run, climb }) OR a legacy
    single-tool file (routes/climbs, runs/entries, foods/entries). */
 function normalizeFile(raw) {
   if (!raw || typeof raw !== "object") throw new Error("not a JSON object");
   const isMerged = TOOLS.some(t => raw[t.id] && typeof raw[t.id] === "object" && typeof raw[t.id] !== "function");
+  dbg("normalizeFile: merged =", isMerged, "· top-level keys =", Object.keys(raw));
   const out = {};
   for (const tool of TOOLS) {
     if (isMerged) {
@@ -40,6 +56,7 @@ function normalizeFile(raw) {
         try {
           out[tool.id] = tool.normalize(raw[tool.id]);
         } catch (err) {
+          console.error("[fit] " + tool.id + ".normalize() failed:", err);
           out[tool.id] = tool.empty();
         }
       } else {
@@ -49,9 +66,11 @@ function normalizeFile(raw) {
       try {
         out[tool.id] = tool.normalize(raw);
       } catch (err) {
+        console.error("[fit] " + tool.id + ".normalize() failed:", err);
         out[tool.id] = tool.empty();
       }
     }
+    dbg("  normalize →", tool.id, dbgCounts(tool.id, out[tool.id]));
   }
   return out;
 }
@@ -66,26 +85,39 @@ function loadAndStart(data, name) {
   }
   filename = name || DEFAULT_FILE;
   for (const tool of TOOLS) applyToolData(tool, norm[tool.id]);
+  dbg("loadAndStart:", filename, "·", TOOLS.map(t => t.id + "=" + JSON.stringify(dbgCounts(t.id, norm[t.id]))).join(" "));
 
   document.getElementById("file-name").textContent = "(" + filename + ")";
   document.getElementById("app").classList.remove("hidden");
-  for (const tool of TOOLS) tool.reset();
+  for (const tool of TOOLS) {
+    try { tool.reset(); } catch (err) { console.error("[fit] " + tool.id + ".reset() failed:", err); }
+  }
   refreshAll();
+  dbg("loadAndStart: done");
 }
 
 function newEmptyFile() {
+  dbg("newEmptyFile");
   for (const tool of TOOLS) applyToolData(tool, tool.empty());
   filename = DEFAULT_FILE;
   document.getElementById("file-name").textContent = "(new file)";
   document.getElementById("app").classList.remove("hidden");
-  for (const tool of TOOLS) tool.reset();
+  for (const tool of TOOLS) {
+    try { tool.reset(); } catch (err) { console.error("[fit] " + tool.id + ".reset() failed:", err); }
+  }
   refreshAll();
 }
 
 /* -------- Render orchestration -------- */
 function refreshAll() {
-  for (const tool of TOOLS) tool.render();
-  renderOverview();
+  for (const tool of TOOLS) {
+    try {
+      tool.render();
+    } catch (err) {
+      console.error("[fit] " + tool.id + ".render() threw — tool not shown:", err);
+    }
+  }
+  try { renderOverview(); } catch (err) { console.error("[fit] renderOverview() threw:", err); }
   backupDB();
 }
 
@@ -138,12 +170,16 @@ function renderOverview() {
 function autoStart() {
   const bk = readBackup();
   if (bk && bk.data && typeof bk.data === "object") {
+    dbg("autoStart: resuming backup", bk.filename || DEFAULT_FILE, "· savedAt", bk.savedAt ? new Date(bk.savedAt).toISOString() : "?");
     try {
       loadAndStart(bk.data, bk.filename || DEFAULT_FILE);
       return;
     } catch (err) {
+      console.error("[fit] autoStart: backup failed to load — starting empty:", err);
       try { localStorage.removeItem(BACKUP_KEY); } catch (e) {}
     }
+  } else {
+    dbg("autoStart: no usable backup — starting empty file");
   }
   newEmptyFile();
 }
