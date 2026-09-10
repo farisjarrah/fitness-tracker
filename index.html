@@ -23,6 +23,7 @@
   <header class="topbar">
     <h1>Fitness Tracker <span class="file-name" id="file-name"></span></h1>
     <div class="topbar-actions">
+      <button class="theme-toggle" id="units-toggle" title="Switch between metric and imperial units">⚖️ <span id="units-label">Metric</span></button>
       <button class="theme-toggle" id="theme-toggle" title="Toggle dark / light mode"><span id="theme-emoji">🌙</span><span id="theme-label"> Dark</span></button>
       <div class="menu-wrap">
         <button class="menu-btn" id="menu-btn" title="Menu">☰</button>
@@ -336,10 +337,7 @@
           <div class="field">
             <label for="ht-height">Height</label>
             <input id="ht-height" type="number" min="0" step="any" placeholder="175" style="width:100px">
-            <select id="ht-height-unit">
-              <option value="cm">cm</option>
-              <option value="in">in</option>
-            </select>
+            <span class="unit" id="ht-height-unit">cm</span>
           </div>
         </div>
 
@@ -368,10 +366,7 @@
           <div class="field">
             <label for="ht-water">Water</label>
             <input id="ht-water" type="number" min="0" step="any" placeholder="2500" style="width:100px">
-            <select id="ht-water-unit">
-              <option value="ml">ml</option>
-              <option value="l">L</option>
-            </select>
+            <span class="unit" id="ht-water-unit">ml</span>
           </div>
         </div>
 
@@ -380,10 +375,7 @@
           <div class="field">
             <label for="ht-mileage">Weekly running</label>
             <input id="ht-mileage" type="number" min="0" step="any" placeholder="40" style="width:100px">
-            <select id="ht-mileage-unit">
-              <option value="km">km</option>
-              <option value="mi">mi</option>
-            </select>
+            <span class="unit" id="ht-mileage-unit">km</span>
             <span class="unit">/ week</span>
           </div>
         </div>
@@ -417,6 +409,8 @@
       <p class="form-hint" style="padding:0 4px 4px;">
         All values are optional and can stay empty. Height and targets are read by the
         Overview, Calorie (target lines), Run (weekly-mileage target) and Climbing tools.
+        Display units (cm/in, kg/lb, ml/fl oz, km/mi, ft+in) follow the metric/imperial
+        picker in the top bar.
       </p>
     </div>
 
@@ -498,6 +492,12 @@
       </div>
 
       <div class="card">
+        <h2>Mood over time</h2>
+        <div class="chart-summary" id="ht-m-summary"></div>
+        <div id="ht-m-chart"></div>
+      </div>
+
+      <div class="card">
         <h2>Weight history</h2>
         <div id="ht-w-log"><p class="no-data">No weigh-ins logged yet.</p></div>
       </div>
@@ -512,13 +512,9 @@
 <!-- =====================================================================
   Run tool section — injected by the shell. Contains ONLY the run tool's
   markup (add form, stats, charts, history, runs/shoes registries, edit
-  modals, in-section unit toggle). No shell-level ids, no <script>.
+  modals). No shell-level ids, no <script>.
   ===================================================================== -->
 <section class="tool hidden" id="tool-run">
-
-  <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-    <button class="unit-toggle" id="rn-unit-toggle" title="Switch between km and miles">Units: <span id="rn-unit-label">km</span></button>
-  </div>
 
   <nav class="tabs">
     <button class="tab active" data-view="home">Home</button>
@@ -601,7 +597,7 @@
       <p class="form-hint">
         Picking a run auto-fills its distance, duration, location, surface, shoes, and workout type
         (you can still override any of them). Distance, elevation, and pace display follow your
-        km/mi unit toggle. Effort is your perceived exertion, 1-10.
+        metric/imperial unit picker in the top bar. Effort is your perceived exertion, 1-10.
       </p>
     </div>
 
@@ -776,6 +772,13 @@
         </div>
       </div>
       <div class="modal-row">
+        <div class="modal-field" style="flex:2;">
+          <label>Shoes</label>
+          <div id="rn-ee-shoe-rows" class="shoe-rows"></div>
+          <button type="button" class="btn small" id="rn-ee-add-shoe">＋ Add shoe</button>
+        </div>
+      </div>
+      <div class="modal-row">
         <div class="modal-field">
           <label for="rn-ee-effort">Effort (1-10)</label>
           <input id="rn-ee-effort" type="number" min="1" max="10">
@@ -945,22 +948,10 @@
       <div id="cal-cal-chart"></div>
     </div>
     <div class="card">
-      <h2>Protein (g) consumed</h2>
-      <div class="range-tabs" id="cal-protein-range"></div>
-      <div class="chart-summary" id="cal-protein-summary"></div>
-      <div id="cal-protein-chart"></div>
-    </div>
-    <div class="card">
-      <h2>Carbs (g) consumed</h2>
-      <div class="range-tabs" id="cal-carbs-range"></div>
-      <div class="chart-summary" id="cal-carbs-summary"></div>
-      <div id="cal-carbs-chart"></div>
-    </div>
-    <div class="card">
-      <h2>Fat (g) consumed</h2>
-      <div class="range-tabs" id="cal-fat-range"></div>
-      <div class="chart-summary" id="cal-fat-summary"></div>
-      <div id="cal-fat-chart"></div>
+      <h2>Macros (g) consumed</h2>
+      <div class="range-tabs" id="cal-macro-range"></div>
+      <div class="chart-summary" id="cal-macro-summary"></div>
+      <div id="cal-macro-chart"></div>
     </div>
     <div class="card">
       <h2>Foods eaten (times used)</h2>

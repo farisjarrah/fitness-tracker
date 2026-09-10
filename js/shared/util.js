@@ -12,7 +12,30 @@ let filename = "fitness-data.json";
 
 const THEME_KEY = "fit-theme";
 const BACKUP_KEY = "fit-data-backup";
+const UNITS_KEY = "fit-units";
 const DEFAULT_FILE = "fitness-data.json";
+
+/* -------- Global metric/imperial units -------- */
+/* Single source of truth for display units — one picker in the topbar
+   affects every tool. Drives run (km/mi, m/ft), health (cm/in, kg/lb,
+   fl oz, ft+in height) and calorie display. Tools subscribe with
+   onUnitsChanged() so cached values track the toggle live. */
+const unitListeners = [];
+function currentUnits() {
+  try {
+    const v = localStorage.getItem(UNITS_KEY);
+    return v === "imperial" ? "imperial" : "metric";
+  } catch (e) { return "metric"; }
+}
+function onUnitsChanged(fn) { unitListeners.push(fn); }
+function unitsChanged(u) {
+  const next = u === "imperial" ? "imperial" : "metric";
+  try { localStorage.setItem(UNITS_KEY, next); } catch (e) {}
+  for (const fn of unitListeners) {
+    try { fn(next); } catch (err) { console.error("units listener threw:", err); }
+  }
+  if (typeof refreshAll === "function") refreshAll();
+}
 
 /* -------- Debug logging (turn off by setting window.DEBUG = false) -------- */
 window.DEBUG = true;

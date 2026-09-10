@@ -152,7 +152,7 @@ function renderLineChart(boxId, sumId, series, opts) {
   const toX = x => padX + (maxX <= 1 ? 0 : (x / maxX) * iw);
   const toY = y => padTop + ih - ((Math.min(Math.max(y, yBase), maxY) - yBase) / yRange) * ih;
 
-  const yTickVals = yBase > 0 ? [yBase, ...tickVals] : tickVals;
+  const yTickVals = o.yTicks || (yBase > 0 ? [yBase, ...tickVals] : tickVals);
   let yTicks = "";
   for (const tv of yTickVals) {
     yTicks += `<text x="${padX - 6}" y="${toY(tv) + 4}" text-anchor="end" class="lc-tick">${yFormat(tv)}</text>`;

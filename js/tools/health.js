@@ -8,8 +8,8 @@
    - run tool:     targets.weeklyMileageM renders as the weekly target
      slope on the mileage-over-time line chart.
    Weight is stored in kg, height in cm, water in ml, mileage in meters;
-   display units are user preferences kept in localStorage (fit-*-unit),
-   matching the run tool's fit-run-unit pattern. Everything is optional:
+   display units follow the global metric/imperial picker (fit-units in
+   localStorage), shared with the run tool. Everything is optional:
    empty() and normalize() never force values, so old merged data files
    load untouched (the shell maps a missing "health" key to empty()).
    ===================================================================== */
@@ -20,22 +20,33 @@
   const $ = id => document.getElementById("ht-" + id);
   const D = window.DB.health;
 
-  /* -------- Display-unit preferences (localStorage, UI-only) -------- */
-  const getPref = (k, dflt) => { try { return localStorage.getItem(k) || dflt; } catch (e) { return dflt; } };
-  const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
-  const heightUnit = () => getPref("fit-height-unit", "cm");
-  const weightUnit = () => getPref("fit-weight-unit", "kg");
-  const waterUnit = () => getPref("fit-water-unit", "ml");
-  const mileageUnit = () => getPref("fit-mileage-unit", "km");
+  /* -------- Display units (global metric/imperial picker, UI-only) -------- */
+  const imperial = () => currentUnits() === "imperial";
+  const heightUnit = () => imperial() ? "in" : "cm";
+  const weightUnit = () => imperial() ? "lb" : "kg";
+  const waterUnit = () => imperial() ? "fl oz" : "ml";
+  const mileageUnit = () => imperial() ? "mi" : "km";
 
-  const cmToH = cm => heightUnit() === "cm" ? cm : cm / 2.54;
-  const hToCm = v => heightUnit() === "cm" ? v : v * 2.54;
-  const kgToW = kg => weightUnit() === "kg" ? kg : kg * 2.20462;
-  const wToKg = v => weightUnit() === "kg" ? v : v / 2.20462;
-  const mlToWat = ml => waterUnit() === "ml" ? ml : ml / 1000;
-  const watToMl = v => waterUnit() === "ml" ? v : v * 1000;
-  const mToMil = m => mileageUnit() === "km" ? m / 1000 : m / 1609.344;
-  const milToM = v => mileageUnit() === "km" ? v * 1000 : v * 1609.344;
+  const cmToH = cm => imperial() ? cm / 2.54 : cm;
+  const hToCm = v => imperial() ? v * 2.54 : v;
+  const kgToW = kg => imperial() ? kg * 2.20462 : kg;
+  const wToKg = v => imperial() ? v / 2.20462 : v;
+  const mlToWat = ml => imperial() ? ml / 29.5735 : ml;
+  const watToMl = v => imperial() ? v * 29.5735 : v;
+  const mToMil = m => imperial() ? m / 1609.344 : m / 1000;
+  const milToM = v => imperial() ? v * 1609.344 : v * 1000;
+
+  /* Height string: "1.75 m" in metric, "5′9″" (ft + in) in imperial. */
+  const heightText = cm => {
+    if (!(cm > 0)) return "";
+    if (!imperial()) {
+      return cm >= 100 ? (cm / 100).toFixed(2) + " m" : cm + " cm";
+    }
+    const inches = cm / 2.54;
+    const ft = Math.floor(inches / 12);
+    const rem = Math.round(inches - ft * 12);
+    return (ft === 0 ? "" : ft + "′") + rem + "″";
+  };
 
   function targets() {
     if (!D.targets) D.targets = emptyTargets();
@@ -59,16 +70,16 @@
   let lastSettingsSig = "";
   function renderSettingsInputs() {
     $("height").value = D.heightCm ? Number(cmToH(D.heightCm).toFixed(1)) : "";
-    $("height-unit").value = heightUnit();
+    $("height-unit").textContent = heightUnit();
     const t = targets();
     $("calories").value = t.calories == null ? "" : t.calories;
     $("protein").value = t.protein == null ? "" : t.protein;
     $("carbs").value = t.carbs == null ? "" : t.carbs;
     $("fat").value = t.fat == null ? "" : t.fat;
     $("water").value = t.waterMl == null ? "" : Number(mlToWat(t.waterMl).toFixed(1));
-    $("water-unit").value = waterUnit();
+    $("water-unit").textContent = waterUnit();
     $("mileage").value = t.weeklyMileageM == null ? "" : Number(mToMil(t.weeklyMileageM).toFixed(1));
-    $("mileage-unit").value = mileageUnit();
+    $("mileage-unit").textContent = mileageUnit();
     const wc = t.weeklyClimbs || {};
     $("cl-boulder").value = wc.bouldering == null ? "" : wc.bouldering;
     $("cl-toprope").value = wc.topRope == null ? "" : wc.topRope;
@@ -115,27 +126,6 @@
     }, 1600);
   }
 
-  function wireUnitSwitch(selId, prefKey, inputId) {
-    $(selId).addEventListener("change", () => {
-      const oldUnit = getPref(prefKey, "");
-      const newUnit = $(selId).value;
-      const cur = parseFloat($(inputId).value);
-      let inBase = null;
-      if (isFinite(cur)) {
-        if (prefKey === "fit-height-unit") inBase = oldUnit === "cm" ? cur : cur * 2.54;
-        else if (prefKey === "fit-water-unit") inBase = oldUnit === "ml" ? cur : cur * 1000;
-        else if (prefKey === "fit-mileage-unit") inBase = oldUnit === "km" ? cur * 1000 : cur * 1609.344;
-      }
-      setPref(prefKey, newUnit);
-      if (inBase != null) {
-        let shown;
-        if (prefKey === "fit-height-unit") shown = newUnit === "cm" ? inBase : inBase / 2.54;
-        else if (prefKey === "fit-water-unit") shown = newUnit === "ml" ? inBase : inBase / 1000;
-        else if (prefKey === "fit-mileage-unit") shown = newUnit === "km" ? inBase / 1000 : inBase / 1609.344;
-        $(inputId).value = Number(shown.toFixed(1));
-      }
-    });
-  }
   function sortedWeight() {
     return D.weight.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "") || a.id - b.id);
   }
@@ -198,7 +188,7 @@
     const parts = [];
     if (latest) parts.push(`latest <b>${weightDisplay(latest.kg)}</b>`);
     if (D.heightCm) {
-      parts.push(`${cmToH(D.heightCm).toFixed(1)} ${heightUnit()} tall`);
+      parts.push(`${heightText(D.heightCm)} tall`);
       if (latest) {
         const bmi = bmiValue(latest.kg);
         if (bmi) parts.push(`BMI <b>${bmi.toFixed(1)}</b> (${bmiCategory(bmi)})`);
@@ -302,6 +292,33 @@
       <thead><tr><th>Date</th><th>Time</th><th>Mood</th><th>Note</th><th></th></tr></thead>
       <tbody>${rows.join("")}</tbody>
     </table>`;
+  }
+
+  function renderMoodChart() {
+    const box = $("m-chart");
+    const sum = $("m-summary");
+    const log = sortedMood();
+    if (log.length === 0) {
+      box.innerHTML = '<p class="no-data">No moods logged yet.</p>';
+      sum.textContent = "";
+      return;
+    }
+    const series = [{
+      label: "mood (1-10)",
+      color: "var(--accent)",
+      points: log.map((m, i) => [i, m.mood])
+    }];
+    const avg = (log.reduce((s, m) => s + m.mood, 0) / log.length).toFixed(1);
+    const sumTxt = log.length + " moods · " + fmtDate(log[0].date) + " → " + fmtDate(log[log.length - 1].date) +
+      " · avg " + avg + "/10";
+    renderLineChart("ht-m-chart", "ht-m-summary", series, {
+      xFormat: i => (log[i] ? log[i].date.slice(5).replace("-", "/") + (log[i].time ? " " + log[i].time.slice(0, 5) : "") : ""),
+      yFormat: v => String(Math.round(v)),
+      summary: sumTxt,
+      yBase: 1,
+      yMax: 10,
+      yTicks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    });
   }
 
   /* -------- registerTool contract -------- */
@@ -415,9 +432,9 @@
       const nowHH = () => String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
       $("w-time").value = nowHH();
 
-      wireUnitSwitch("height-unit", "fit-height-unit", "height");
-      wireUnitSwitch("water-unit", "fit-water-unit", "water");
-      wireUnitSwitch("mileage-unit", "fit-mileage-unit", "mileage");
+      onUnitsChanged(_u => {
+        renderSettingsInputs();
+      });
     },
     reset() {
       $("w-value").value = "";
@@ -437,6 +454,7 @@
       renderHealthStats();
       renderWeightChart();
       renderWeightLog();
+      renderMoodChart();
       renderMoodLog();
     },
     summary() {
@@ -446,12 +464,14 @@
       const moods = sortedMood();
       const lastMood = moods.length ? moods[moods.length - 1].mood : null;
       const out = [];
-      if (D.heightCm) out.push({ label: "height", value: `${cmToH(D.heightCm).toFixed(1)} ${heightUnit()}` });
+      if (D.heightCm) out.push({ label: "height", value: heightText(D.heightCm) });
       if (latest) {
         out.push({ label: "current weight", value: weightDisplay(latest.kg) });
         const bmi = bmiValue(latest.kg);
         if (bmi) out.push({ label: "BMI", value: bmi.toFixed(1) });
       }
+      const avgCal = (typeof window.calorieAvgDaily === "function") ? window.calorieAvgDaily() : 0;
+      if (avgCal > 0) out.push({ label: "avg daily cal", value: avgCal.toLocaleString() + " cal" });
       if (lastMood) out.push({ label: "mood", value: lastMood + "/10" });
       if (t.calories) out.push({ label: "calorie target", value: t.calories + " kcal/day" });
       return out;

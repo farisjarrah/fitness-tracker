@@ -21,10 +21,8 @@
   /* -------- Tool-local state -------- */
   let selectedDate = null;
   let calRange = "today";
-  let foodRange = "today";
-  let proteinRange = "today";
-  let carbsRange = "today";
-  let fatRange = "today";
+  let foodRange = "all";
+  let macroRange = "today";
   let histFrom = null;
   let histTo = null;
 
@@ -80,6 +78,23 @@
     refreshAll();
   }
   window.cal_toggleCheat = function (date) { toggleCheatDay(date); };
+
+  /* -------- Shared summary helpers (also read by the Health overview) -------- */
+  function todayCalories() {
+    const t = todayISO();
+    return D.entries.filter(e => e.date === t).reduce((s, e) => s + totalForEntry(e), 0);
+  }
+  function avgDailyCalories() {
+    const today = todayISO();
+    const daily = {};
+    for (const e of D.entries) daily[e.date] = (daily[e.date] || 0) + totalForEntry(e);
+    delete daily[today];
+    for (const d of cheatDays()) delete daily[d];
+    const vals = Object.values(daily);
+    return vals.length ? Math.round(vals.reduce((s, n) => s + n, 0) / vals.length) : 0;
+  }
+  window.calorieTodayTotal = todayCalories;
+  window.calorieAvgDaily = avgDailyCalories;
 
   /* -------- Chart bucketing -------- */
   /* Every bucket => { label: entries[] }. Keyed for aggregation. */
@@ -430,9 +445,43 @@
     renderLineCal(range, "cal-cal-range", "cal-cal-chart", "cal-cal-summary", e => totalForEntry(e), t, "Calories");
   }
 
-  function renderMacroChart(range, rangeBoxId, key, boxId, sumId, label) {
-    const t = (window.DB.health && window.DB.health.targets) ? (window.DB.health.targets[key] || null) : null;
-    renderLineCal(range, rangeBoxId, boxId, sumId, e => macroTotal([e], key), t, label);
+  function renderMacroChart(range) {
+    const meta = [
+      { key: "protein", label: "Protein", color: "#2563eb" },
+      { key: "carbs", label: "Carbs", color: "#d97706" },
+      { key: "fat", label: "Fat", color: "#dc2626" }
+    ];
+    const grid = chartGrid(range);
+    const labels = grid.cells.map(c => c.label);
+    const days = grid.days;
+    const t = (window.DB.health && window.DB.health.targets) ? window.DB.health.targets : {};
+    const series = [];
+    const totals = {};
+    for (const m of meta) {
+      const cs = cumulativeSeries(range, e => macroTotal([e], m.key));
+      const count = cs.count;
+      totals[m.key] = cs.points.length ? cs.points[cs.points.length - 1][1] : 0;
+      series.push({ label: m.label, color: m.color, points: cs.points });
+      const tgt = t[m.key] ? t[m.key] : null;
+      if (tgt && (tgt > 0)) {
+        const tVal = tgt * Math.max(1, days);
+        series.push({
+          label: "target " + m.label, color: m.color, dashed: true,
+          points: [[0, tVal], [Math.max(0, count - 1), tVal]]
+        });
+      }
+    }
+    let summary = "";
+    if (labels.length > 0) {
+      const parts = meta.map(m => `${m.label} ${Math.round(totals[m.key])}g`).join(" · ");
+      summary = `${RANGE_LABEL[range]} · ${parts}`;
+    }
+    renderLineChart("cal-macro-chart", "cal-macro-summary", series, {
+      xFormat: i => (labels[i] || ""),
+      yFormat: v => Math.round(v) + " g",
+      summary
+    });
+    syncRangeTabs("cal-macro-range", range);
   }
 
   function renderFoodChart(range) {
@@ -462,9 +511,7 @@
 
   function renderCharts() {
     renderCalChart(calRange);
-    renderMacroChart(proteinRange, "cal-protein-range", "protein", "cal-protein-chart", "cal-protein-summary", "Protein");
-    renderMacroChart(carbsRange, "cal-carbs-range", "carbs", "cal-carbs-chart", "cal-carbs-summary", "Carbs");
-    renderMacroChart(fatRange, "cal-fat-range", "fat", "cal-fat-chart", "cal-fat-summary", "Fat");
+    renderMacroChart(macroRange);
     renderFoodChart(foodRange);
   }
 
@@ -775,12 +822,8 @@
 
       setupRangeButtons("cal-cal-range", RANGES, RANGE_LABEL,
         () => calRange, v => { calRange = v; }, renderCharts);
-      setupRangeButtons("cal-protein-range", RANGES, RANGE_LABEL,
-        () => proteinRange, v => { proteinRange = v; }, renderCharts);
-      setupRangeButtons("cal-carbs-range", RANGES, RANGE_LABEL,
-        () => carbsRange, v => { carbsRange = v; }, renderCharts);
-      setupRangeButtons("cal-fat-range", RANGES, RANGE_LABEL,
-        () => fatRange, v => { fatRange = v; }, renderCharts);
+      setupRangeButtons("cal-macro-range", RANGES, RANGE_LABEL,
+        () => macroRange, v => { macroRange = v; }, renderCharts);
       setupRangeButtons("cal-food-range", RANGES, RANGE_LABEL,
         () => foodRange, v => { foodRange = v; }, renderCharts);
 
@@ -800,10 +843,8 @@
     reset() {
       selectedDate = null;
       calRange = "today";
-      foodRange = "today";
-      proteinRange = "today";
-      carbsRange = "today";
-      fatRange = "today";
+      foodRange = "all";
+      macroRange = "today";
       $("hist-from").value = "";
       $("hist-to").value = "";
       resetHistoryRange();
@@ -819,16 +860,11 @@
       const today = todayISO();
       const todayEntries = D.entries.filter(e => e.date === today);
       const foodCount = Object.keys(D.foods).length;
-      const daily = {};
-      for (const e of D.entries) daily[e.date] = (daily[e.date] || 0) + totalForEntry(e);
-      delete daily[today];
-      for (const d of cheatDays()) delete daily[d];
-      const dayTotals = Object.values(daily);
-      const avg = dayTotals.length ? Math.round(dayTotals.reduce((s, n) => s + n, 0) / dayTotals.length) : 0;
+      const todayTotal = todayCalories();
       return [
         { label: "today", value: `${todayEntries.length} entry${todayEntries.length === 1 ? "" : "s"}` },
         { label: "foods tracked", value: String(foodCount) },
-        { label: "avg daily", value: dayTotals.length ? `${avg} cal` : "—" }
+        { label: "today so far", value: todayTotal > 0 ? todayTotal.toLocaleString() + " cal" : "—" }
       ];
     },
     recent(limit) {

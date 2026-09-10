@@ -23,6 +23,21 @@ document.getElementById("theme-toggle").addEventListener("click", () => {
   localStorage.setItem(THEME_KEY, next);
 });
 
+/* ---------------------- Global units ---------------------- */
+function applyUnitsButton() {
+  const btn = document.getElementById("units-toggle");
+  const label = document.getElementById("units-label");
+  if (label) label.textContent = currentUnits() === "metric" ? "Metric" : "Imperial";
+  if (btn) btn.title = currentUnits() === "metric" ? ("Switch to imperial units") : ("Switch to metric units");
+}
+(function initUnits() {
+  applyUnitsButton();
+})();
+document.getElementById("units-toggle").addEventListener("click", () => {
+  unitsChanged(currentUnits() === "metric" ? "imperial" : "metric");
+  applyUnitsButton();
+});
+
 /* ---------------------- Shared history preset ---------------------- */
 /* ctx = { bounds(), set(from, to), render() } — provided by each tool. */
 function applyHistoryPreset(preset, ctx) {

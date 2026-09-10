@@ -19,10 +19,10 @@
   /* -------- Tool-local state -------- */
   let unit = "metric";
   let statRange = "week";
-  let mileRange = "30d";
-  let mileGran = "week";
-  let shoeRange = "30d";
-  let shoeGran = "week";
+  let mileRange = "week";
+  let mileGran = "day";
+  let shoeRange = "all";
+  let shoeGran = "day";
   let typeRange = "30d";
   let typeGran = "day";
   let surfRange = "30d";
@@ -45,15 +45,7 @@
   const SURFACE_SUGGESTIONS = ["trail", "track", "pavement", "dirt", "grass", "treadmill"];
   const TYPE_SUGGESTIONS = ["easy run", "tempo", "intervals", "long run", "recovery", "race", "hill repeats", "fartlek"];
 
-  /* -------- Units -------- */
-  function applyUnit(u) {
-    unit = u;
-    renderUnitToggle();
-    localStorage.setItem("fit-run-unit", u);
-  }
-  function renderUnitToggle() {
-    $("unit-label").textContent = unit === "metric" ? "km" : "mi";
-  }
+  /* -------- Units (global metric/imperial picker) -------- */
   function distLabel() { return unit === "metric" ? "km" : "mi"; }
   function elevLabel() { return unit === "metric" ? "m" : "ft"; }
   function mToNum(m) { return m / (unit === "metric" ? 1000 : M_PER_MI); }
@@ -122,8 +114,8 @@
     </div>`;
   }
 
-  function resetShoeRows(rows) {
-    const box = $("add-shoe-rows");
+  function resetShoeRows(rows, boxId) {
+    const box = $((boxId || "add-shoe-rows"));
     box.innerHTML = "";
     const n = Math.max(1, (rows && rows.length) || 1);
     for (let i = 0; i < n; i++) {
@@ -145,10 +137,10 @@
     });
   }
 
-  /* Returns [{name, distM}] from the add-form shoe rows. */
-  function collectShoeRows() {
+  /* Returns [{name, distM}] from an add/edit shoe-row box. */
+  function shoeRowsFromBox(box) {
     const out = [];
-    for (const row of $("add-shoe-rows").querySelectorAll(".shoe-row")) {
+    for (const row of box.querySelectorAll(".shoe-row")) {
       const name = row.querySelector(".rn-shoe-inp").value.trim();
       const distNum = parseFloat(row.querySelector(".rn-shoe-dist").value);
       if (!name) continue;
@@ -156,6 +148,7 @@
     }
     return out;
   }
+  function collectShoeRows() { return shoeRowsFromBox($("add-shoe-rows")); }
 
   /* Assigns shoe mileage for an entry. When a single shoe has no distance,
      fall back to the full entry distance (backward-compatible behavior). */
@@ -349,6 +342,18 @@
     $("ee-elev").value = entry.elevGainM ? eleMToNum(entry.elevGainM).toFixed(0) : "";
     $("ee-effort").value = entry.effort ?? "";
     $("ee-notes").value = entry.notes || "";
+
+    // Pre-fill shoe rows from the entry's per-run mileage map, falling
+    // back to the run template's primary shoe so it can be edited.
+    const sm = entry.shoeMileage || {};
+    const shoeRows = Object.keys(sm)
+      .filter(sid => (sm[sid] || 0) > 0)
+      .map(sid => ({ name: shoeById(sid) ? shoeById(sid).name : "", dist: sm[sid] ? fmtDist(sm[sid], 2) : "" }));
+    if (shoeRows.length === 0 && entry.runId) {
+      const r = D.runs[entry.runId];
+      if (r && r.shoesId && shoeById(r.shoesId)) shoeRows.push({ name: shoeById(r.shoesId).name, dist: "" });
+    }
+    resetShoeRows(shoeRows, "ee-shoe-rows");
 
     $("edit-entry-modal")._entryId = id;
     $("edit-entry-modal").classList.remove("hidden");
@@ -1049,9 +1054,8 @@
     },
     sample() { return buildSample(); },
     setup() {
-      const stored = localStorage.getItem("fit-run-unit");
-      unit = stored === "imperial" ? "imperial" : "metric";
-      renderUnitToggle();
+      unit = currentUnits();
+      onUnitsChanged(u => { unit = u; });
 
       initToolTabs(root, "rn-");
 
@@ -1084,34 +1088,43 @@
         const oldRunId = entry.runId;
         entry.runId = $("ee-run").value;
         entry.datetime = $("ee-datetime").value || entry.datetime;
-        // If the run changed and this entry used exactly one shoe (the old run's
-        // primary), reassociate it to the new run's primary shoe.
-        if (oldRunId && oldRunId !== entry.runId) {
-          const oldRun = D.runs[oldRunId];
-          const newRun = D.runs[entry.runId];
-          if (entry.shoeMileage && Object.keys(entry.shoeMileage).length === 1 &&
-              oldRun && newRun && oldRun.shoesId !== newRun.shoesId) {
-            const oldSid = Object.keys(entry.shoeMileage)[0];
-            const collected = Number(entry.shoeMileage[oldSid] || 0);
-            delete entry.shoeMileage[oldSid];
-            if (newRun.shoesId && collected > 0) entry.shoeMileage[newRun.shoesId] = collected;
-          }
-        }
         const d = parseFloat($("ee-distance").value);
         const newDistM = d > 0 ? numToM(d) : 0;
         const oldDistM = entry.distanceM || 0;
         entry.distanceM = newDistM;
-        if (entry.shoeMileage && oldDistM > 0 && newDistM !== oldDistM) {
-          const ratio = newDistM / oldDistM;
-          for (const sid in entry.shoeMileage) {
-            entry.shoeMileage[sid] = Math.round(entry.shoeMileage[sid] * ratio);
+
+        // Explicit shoe rows in the edit form win; otherwise keep the old
+        // legacy behaviour (reassociate primary shoe, rescale on edit).
+        const eeShoeRows = shoeRowsFromBox($("ee-shoe-rows"));
+        const fromRows = shoeMileageForRows(eeShoeRows, newDistM);
+        if (eeShoeRows.length && Object.keys(fromRows).length) {
+          entry.shoeMileage = fromRows;
+        } else {
+          if (!entry.shoeMileage) entry.shoeMileage = {};
+          // If the run changed and this entry used exactly one shoe (the old run's
+          // primary), reassociate it to the new run's primary shoe.
+          if (oldRunId && oldRunId !== entry.runId) {
+            const oldRun = D.runs[oldRunId];
+            const newRun = D.runs[entry.runId];
+            if (Object.keys(entry.shoeMileage).length === 1 &&
+                oldRun && newRun && oldRun.shoesId !== newRun.shoesId) {
+              const oldSid = Object.keys(entry.shoeMileage)[0];
+              const collected = Number(entry.shoeMileage[oldSid] || 0);
+              delete entry.shoeMileage[oldSid];
+              if (newRun.shoesId && collected > 0) entry.shoeMileage[newRun.shoesId] = collected;
+            }
           }
-        }
-        if (!entry.shoeMileage) entry.shoeMileage = {};
-        if (newDistM > 0 && Object.keys(entry.shoeMileage).length === 0) {
-          const r = D.runs[entry.runId];
-          const sid = r && r.shoesId ? r.shoesId : "";
-          if (sid) entry.shoeMileage[sid] = newDistM;
+          if (entry.shoeMileage && oldDistM > 0 && newDistM !== oldDistM) {
+            const ratio = newDistM / oldDistM;
+            for (const sid in entry.shoeMileage) {
+              entry.shoeMileage[sid] = Math.round(entry.shoeMileage[sid] * ratio);
+            }
+          }
+          if (newDistM > 0 && Object.keys(entry.shoeMileage).length === 0) {
+            const r = D.runs[entry.runId];
+            const sid = r && r.shoesId ? r.shoesId : "";
+            if (sid) entry.shoeMileage[sid] = newDistM;
+          }
         }
         const eh = parseInt($("ee-dur-h").value || "0", 10);
         const em = parseInt($("ee-dur-m").value || "0", 10);
@@ -1230,6 +1243,11 @@
       });
       resetShoeRows();
 
+      $("ee-add-shoe").addEventListener("click", () => {
+        $("ee-shoe-rows").insertAdjacentHTML("beforeend", shoeRowHTML());
+        wireShoeRowEvents($("ee-shoe-rows"));
+      });
+
       setupRangeButtons("rn-stat-range", RANGES, RANGE_LABEL, () => statRange, v => { statRange = v; }, renderHome, "Period");
 
       ["rn-filter-location", "rn-filter-surface", "rn-filter-type"].forEach(id => {
@@ -1247,11 +1265,6 @@
         renderSuggestionLists();
         renderRunsList();
       });
-
-      $("unit-toggle").addEventListener("click", () => {
-        applyUnit(unit === "metric" ? "imperial" : "metric");
-        renderTool();
-      });
     },
     reset() {
       selectedDate = null;
@@ -1259,10 +1272,10 @@
       expandedShoes.clear();
       resetShoeRows();
       statRange = "week";
-      mileRange = "30d";
-      mileGran = "week";
-      shoeRange = "30d";
-      shoeGran = "week";
+      mileRange = "week";
+      mileGran = "day";
+      shoeRange = "all";
+      shoeGran = "day";
       typeRange = "30d";
       typeGran = "day";
       surfRange = "30d";
@@ -1308,7 +1321,6 @@
   };
 
   function renderTool() {
-    renderUnitToggle();
     renderSuggestionLists();
     renderRunList();
     renderHome();
