@@ -23,6 +23,7 @@
   let calRange = "today";
   let foodRange = "all";
   let macroRange = "today";
+  let macroPick = "all";
   let histFrom = null;
   let histTo = null;
 
@@ -38,6 +39,14 @@
   ];
   const EXTRA_BY_KEY = Object.fromEntries(EXTRA_MACROS.map(x => [x.key, x]));
   const MACRO_COLORS = { protein: "#2563eb", carbs: "#d97706", fat: "#dc2626", sodium: "#14b8a6", fiber: "#22c55e", cholesterol: "#f97316", sugar: "#eab308" };
+  const ALL_MACROS = [
+    { key: "protein", label: "Protein", unit: "g" },
+    { key: "carbs", label: "Carbs", unit: "g" },
+    { key: "fat", label: "Fat", unit: "g" },
+    ...EXTRA_MACROS
+  ];
+  const MACRO_PICK_LABEL = { all: "All" };
+  for (const m of ALL_MACROS) MACRO_PICK_LABEL[m.key] = m.label;
 
   function readExtraMacros(prefix, target) {
     for (const x of EXTRA_MACROS) {
@@ -474,12 +483,7 @@
   }
 
   function renderMacroChart(range) {
-    const meta = [
-      { key: "protein", label: "Protein", unit: "g" },
-      { key: "carbs", label: "Carbs", unit: "g" },
-      { key: "fat", label: "Fat", unit: "g" },
-      ...EXTRA_MACROS
-    ];
+    const meta = macroPick === "all" ? ALL_MACROS : ALL_MACROS.filter(m => m.key === macroPick);
     const grid = chartGrid(range);
     const labels = grid.cells.map(c => c.label);
     const days = grid.days;
@@ -512,6 +516,7 @@
       summary
     });
     syncRangeTabs("cal-macro-range", range);
+    syncRangeTabs("cal-macro-pick", macroPick);
   }
 
   function renderFoodChart(range) {
@@ -864,6 +869,8 @@
         () => calRange, v => { calRange = v; }, renderCharts);
       setupRangeButtons("cal-macro-range", RANGES, RANGE_LABEL,
         () => macroRange, v => { macroRange = v; }, renderCharts);
+      setupRangeButtons("cal-macro-pick", ["all", ...ALL_MACROS.map(m => m.key)], MACRO_PICK_LABEL,
+        () => macroPick, v => { macroPick = v; }, () => renderMacroChart(macroRange));
       setupRangeButtons("cal-food-range", RANGES, RANGE_LABEL,
         () => foodRange, v => { foodRange = v; }, renderCharts);
 
@@ -885,6 +892,7 @@
       calRange = "today";
       foodRange = "all";
       macroRange = "today";
+      macroPick = "all";
       $("hist-from").value = "";
       $("hist-to").value = "";
       resetHistoryRange();
