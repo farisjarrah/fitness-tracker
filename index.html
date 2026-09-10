@@ -98,6 +98,13 @@
             <input id="cl-add-link" type="text" list="cl-link-list" placeholder="mountainproject.com/..." style="width:230px">
           </div>
           <div class="field">
+            <label>GPS coords</label>
+            <div style="display:flex;gap:6px">
+              <input id="cl-add-lat" type="number" min="-90" max="90" step="any" placeholder="lat 37.77" style="width:100px" title="GPS latitude (optional)">
+              <input id="cl-add-lon" type="number" min="-180" max="180" step="any" placeholder="lon -119.55" style="width:110px" title="GPS longitude (optional)">
+            </div>
+          </div>
+          <div class="field">
             <label for="cl-add-rnotes">Route notes / description</label>
             <input id="cl-add-rnotes" type="text" list="cl-rnotes-list" placeholder="runout, big approach" style="width:220px">
           </div>
@@ -302,6 +309,16 @@
           <div class="modal-field" style="flex:2;">
             <label for="cl-er-link">Link</label>
             <input id="cl-er-link" type="text" list="cl-link-list-edit">
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label for="cl-er-lat">Latitude</label>
+            <input id="cl-er-lat" type="number" min="-90" max="90" step="any" placeholder="37.77">
+          </div>
+          <div class="modal-field">
+            <label for="cl-er-lon">Longitude</label>
+            <input id="cl-er-lon" type="number" min="-180" max="180" step="any" placeholder="-119.55">
           </div>
         </div>
         <div class="modal-row">
@@ -563,6 +580,13 @@
           <input id="rn-add-location" type="text" list="rn-location-list" placeholder="Park" style="width:120px">
         </div>
         <div class="field">
+          <label>GPS coords</label>
+          <div style="display:flex;gap:6px">
+            <input id="rn-add-lat" type="number" min="-90" max="90" step="any" placeholder="lat 37.77" style="width:100px" title="GPS latitude (optional)">
+            <input id="rn-add-lon" type="number" min="-180" max="180" step="any" placeholder="lon -122.41" style="width:110px" title="GPS longitude (optional)">
+          </div>
+        </div>
+        <div class="field">
           <label for="rn-add-surface">Surface</label>
           <input id="rn-add-surface" type="text" list="rn-surface-list" placeholder="trail" style="width:90px">
         </div>
@@ -809,6 +833,16 @@
           <input id="rn-er-location" type="text" list="rn-location-list-edit">
         </div>
       </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="rn-er-lat">Latitude</label>
+          <input id="rn-er-lat" type="number" min="-90" max="90" step="any" placeholder="37.77">
+        </div>
+        <div class="modal-field">
+          <label for="rn-er-lon">Longitude</label>
+          <input id="rn-er-lon" type="number" min="-180" max="180" step="any" placeholder="-122.41">
+        </div>
+      </div>
       <datalist id="rn-location-list-edit"></datalist>
       <div class="modal-row">
         <div class="modal-field">
@@ -902,6 +936,22 @@
           <input id="cal-add-fat" type="number" min="0" step="any" placeholder="—" style="width:80px">
         </div>
         <div class="field">
+          <label for="cal-add-sodium">Sodium (mg)</label>
+          <input id="cal-add-sodium" type="number" min="0" step="any" placeholder="—" style="width:90px">
+        </div>
+        <div class="field">
+          <label for="cal-add-fiber">Fiber (g)</label>
+          <input id="cal-add-fiber" type="number" min="0" step="any" placeholder="—" style="width:80px">
+        </div>
+        <div class="field">
+          <label for="cal-add-cholesterol">Cholesterol (mg)</label>
+          <input id="cal-add-cholesterol" type="number" min="0" step="any" placeholder="—" style="width:90px">
+        </div>
+        <div class="field">
+          <label for="cal-add-sugar">Sugar (g)</label>
+          <input id="cal-add-sugar" type="number" min="0" step="any" placeholder="—" style="width:80px">
+        </div>
+        <div class="field">
           <label for="cal-add-qty">Servings</label>
           <input id="cal-add-qty" type="number" min="0.01" step="any" value="1" style="width:80px">
         </div>
@@ -948,7 +998,7 @@
       <div id="cal-cal-chart"></div>
     </div>
     <div class="card">
-      <h2>Macros (g) consumed</h2>
+      <h2>Macros consumed</h2>
       <div class="range-tabs" id="cal-macro-range"></div>
       <div class="chart-summary" id="cal-macro-summary"></div>
       <div id="cal-macro-chart"></div>
@@ -1038,6 +1088,24 @@
           <input id="cal-ee-fat" type="number" min="0" step="any">
         </div>
       </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="cal-ee-sodium">Sodium (mg)</label>
+          <input id="cal-ee-sodium" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-fiber">Fiber (g)</label>
+          <input id="cal-ee-fiber" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-cholesterol">Cholesterol (mg)</label>
+          <input id="cal-ee-cholesterol" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ee-sugar">Sugar (g)</label>
+          <input id="cal-ee-sugar" type="number" min="0" step="any">
+        </div>
+      </div>
       <datalist id="cal-food-list-edit"></datalist>
       <div class="modal-actions">
         <button class="btn" id="cal-ee-cancel">Cancel</button>
@@ -1072,6 +1140,24 @@
         <div class="modal-field">
           <label for="cal-ef-fat">Fat (g)</label>
           <input id="cal-ef-fat" type="number" min="0" step="any">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label for="cal-ef-sodium">Sodium (mg)</label>
+          <input id="cal-ef-sodium" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ef-fiber">Fiber (g)</label>
+          <input id="cal-ef-fiber" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ef-cholesterol">Cholesterol (mg)</label>
+          <input id="cal-ef-cholesterol" type="number" min="0" step="any">
+        </div>
+        <div class="modal-field">
+          <label for="cal-ef-sugar">Sugar (g)</label>
+          <input id="cal-ef-sugar" type="number" min="0" step="any">
         </div>
       </div>
       <div class="modal-actions">

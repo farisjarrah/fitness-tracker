@@ -279,7 +279,7 @@
             <td>${r.grade ? `<span class="pill">${esc(r.grade)}</span>` : ""}</td>
             <td>${esc(r.style || "")}</td>
             <td class="num">${r.pitches || "—"}</td>
-            <td>${esc(r.location || "")}</td>
+            <td>${esc(r.location || "")}${fmtCoords(r.lat, r.lon) ? `<div class="mutednote">${esc(fmtCoords(r.lat, r.lon))}</div>` : ""}</td>
             <td>${r.link ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">link</a>` : ""}</td>
             <td class="num">${count}</td>
             <td><div class="row-actions">
@@ -324,6 +324,8 @@
     $("er-pitches").value = r.pitches ?? "";
     $("er-style").value = r.style || "";
     $("er-location").value = r.location || "";
+    $("er-lat").value = r.lat ?? "";
+    $("er-lon").value = r.lon ?? "";
     $("er-link").value = r.link || "";
     $("er-notes").value = r.notes || "";
     $("edit-route-modal")._routeId = id;
@@ -422,6 +424,8 @@
     const pitches = pitchesVal ? parseFloat(pitchesVal) : null;
     const style = $("add-style").value.trim();
     const location = $("add-location").value.trim();
+    const lat = coordLat($("add-lat").value);
+    const lon = coordLon($("add-lon").value);
     const link = $("add-link").value.trim();
     const rnotes = $("add-rnotes").value.trim();
     const date = $("add-date").value || todayISO();
@@ -441,9 +445,11 @@
       match.location = location;
       match.link = link;
       match.notes = rnotes;
+      match.lat = lat != null ? lat : match.lat;
+      match.lon = lon != null ? lon : match.lon;
     } else {
       routeId = nextId("r", D.routes);
-      D.routes[routeId] = { name, grade, pitches, style, location, link, notes: rnotes };
+      D.routes[routeId] = { name, grade, pitches, style, location, link, notes: rnotes, lat, lon };
     }
 
     D.climbs.push({
@@ -463,6 +469,8 @@
     $("add-style").value = "";
     $("add-location").value = "";
     $("add-link").value = "";
+    $("add-lat").value = "";
+    $("add-lon").value = "";
     $("add-rnotes").value = "";
     $("add-date").value = "";
     $("add-notes").value = "";
@@ -473,21 +481,21 @@
   function buildSample() {
     const today = todayISO();
     const routeDefs = [
-      { name: "Snake Dike", grade: "5.7 PG13", pitches: 6, style: "Face", loc: "Yosemite NP, CA", link: "https://www.mountainproject.com/route/105964187", notes: "Runout but easy moves; big approach." },
-      { name: "The Nose", grade: "5.14a", pitches: 31, style: "Big wall", loc: "El Cap, Yosemite", link: "https://www.mountainproject.com/route/105894571", notes: "" },
-      { name: "Cobra Crack", grade: "5.14b", pitches: 1, style: "Crack", loc: "Squamish, BC", link: "", notes: "Legendary finger crack." },
-      { name: "Rodeo Free California", grade: "5.13d", pitches: 1, style: "Crack", loc: "The Needles, CA", link: "", notes: "" },
-      { name: "Astro Monkey", grade: "5.13b", pitches: 1, style: "Crack", loc: "JTree, CA", link: "", notes: "" },
+      { name: "Snake Dike", grade: "5.7 PG13", pitches: 6, style: "Face", loc: "Yosemite NP, CA", link: "https://www.mountainproject.com/route/105964187", notes: "Runout but easy moves; big approach.", lat: 37.711, lon: -119.605 },
+      { name: "The Nose", grade: "5.14a", pitches: 31, style: "Big wall", loc: "El Cap, Yosemite", link: "https://www.mountainproject.com/route/105894571", notes: "", lat: 37.734, lon: -119.637 },
+      { name: "Cobra Crack", grade: "5.14b", pitches: 1, style: "Crack", loc: "Squamish, BC", link: "", notes: "Legendary finger crack.", lat: 49.685, lon: -123.136 },
+      { name: "Rodeo Free California", grade: "5.13d", pitches: 1, style: "Crack", loc: "The Needles, CA", link: "", notes: "", lat: 35.775, lon: -118.557 },
+      { name: "Astro Monkey", grade: "5.13b", pitches: 1, style: "Crack", loc: "JTree, CA", link: "", notes: "", lat: 33.897, lon: -116.016 },
       { name: "V3 crimps", grade: "v3", pitches: 1, style: "Bouldering", loc: "Local gym", link: "", notes: "" },
       { name: "V4 overhang", grade: "v4", pitches: 1, style: "Bouldering", loc: "Local gym", link: "", notes: "" },
       { name: "Gym 5.10d", grade: "5.10d", pitches: 1, style: "Slab", loc: "Local gym", link: "", notes: "" },
-      { name: "Hard Slab", grade: "5.12a", pitches: 2, style: "Slab", loc: "Red Rocks, NV", link: "", notes: "" },
-      { name: "Trad Corner", grade: "5.9", pitches: 3, style: "Corner", loc: "City of Rocks, ID", link: "", notes: "" }
+      { name: "Hard Slab", grade: "5.12a", pitches: 2, style: "Slab", loc: "Red Rocks, NV", link: "", notes: "", lat: 36.106, lon: -115.428 },
+      { name: "Trad Corner", grade: "5.9", pitches: 3, style: "Corner", loc: "City of Rocks, ID", link: "", notes: "", lat: 42.067, lon: -113.717 }
     ];
 
     const db = { routes: {}, climbs: [] };
     routeDefs.forEach((r, i) => {
-      db.routes["r" + (i + 1)] = { name: r.name, grade: r.grade, pitches: r.pitches, style: r.style, location: r.loc, link: r.link, notes: r.notes };
+      db.routes["r" + (i + 1)] = { name: r.name, grade: r.grade, pitches: r.pitches, style: r.style, location: r.loc, link: r.link, notes: r.notes, lat: r.lat ?? null, lon: r.lon ?? null };
     });
 
     let seed = 7;
@@ -551,7 +559,9 @@
           style: String(r.style ?? ""),
           location: String(r.location ?? ""),
           link: String(r.link ?? ""),
-          notes: String(r.notes ?? "")
+          notes: String(r.notes ?? ""),
+          lat: r.lat == null ? null : coordLat(r.lat),
+          lon: r.lon == null ? null : coordLon(r.lon)
         };
       }
       if (!Array.isArray(raw.climbs)) throw new Error("climb data missing 'climbs' array");
@@ -593,6 +603,8 @@
         $("add-style").value = r.style || "";
         $("add-location").value = r.location || "";
         $("add-link").value = r.link || "";
+        $("add-lat").value = r.lat ?? "";
+        $("add-lon").value = r.lon ?? "";
         $("add-rnotes").value = r.notes || "";
         $("add-name").focus();
         e.target.value = "";
@@ -634,6 +646,8 @@
         r.pitches = isFinite(p) ? p : null;
         r.style = $("er-style").value.trim();
         r.location = $("er-location").value.trim();
+        r.lat = coordLat($("er-lat").value);
+        r.lon = coordLon($("er-lon").value);
         r.link = $("er-link").value.trim();
         r.notes = $("er-notes").value.trim();
         closeClimbModals();

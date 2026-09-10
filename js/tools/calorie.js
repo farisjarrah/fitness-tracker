@@ -29,6 +29,29 @@
   const RANGES = ["today", "week", "month", "year", "all"];
   const RANGE_LABEL = { today: "Today", week: "This week", month: "This month", year: "This year", all: "All time" };
 
+  /* Extra macros tracked per food, beyond protein/carbs/fat. */
+  const EXTRA_MACROS = [
+    { key: "sodium", label: "Sodium", unit: "mg" },
+    { key: "fiber", label: "Fiber", unit: "g" },
+    { key: "cholesterol", label: "Cholesterol", unit: "mg" },
+    { key: "sugar", label: "Sugar", unit: "g" }
+  ];
+  const EXTRA_BY_KEY = Object.fromEntries(EXTRA_MACROS.map(x => [x.key, x]));
+  const MACRO_COLORS = { protein: "#2563eb", carbs: "#d97706", fat: "#dc2626", sodium: "#14b8a6", fiber: "#22c55e", cholesterol: "#f97316", sugar: "#eab308" };
+
+  function readExtraMacros(prefix, target) {
+    for (const x of EXTRA_MACROS) {
+      const v = parseFloat($(prefix + "-" + x.key).value);
+      if (v > 0) target[x.key] = v;
+    }
+    return target;
+  }
+
+  function fillExtraMacros(prefix, macros) {
+    const m = macros || {};
+    for (const x of EXTRA_MACROS) $(prefix + "-" + x.key).value = m[x.key] || "";
+  }
+
   /* -------- Data helpers -------- */
   function nowHM() {
     const d = new Date();
@@ -266,7 +289,10 @@
         const f = D.foods[id];
         const used = D.entries.filter(e => e.foodId === id).length;
         const macroText = Object.keys(f.macros || {}).length
-          ? Object.entries(f.macros).map(([k, v]) => `${k}: ${v}`).join(", ")
+          ? Object.entries(f.macros).map(([k, v]) => {
+              const m = EXTRA_BY_KEY[k];
+              return m ? `${m.label} ${v} ${m.unit}` : `${k}: ${v}`;
+            }).join(", ")
           : "—";
         return `<tr>
         <td>${esc(f.name)}</td>
@@ -293,6 +319,7 @@
     $("ef-protein").value = m.protein || "";
     $("ef-carbs").value = m.carbs || "";
     $("ef-fat").value = m.fat || "";
+    fillExtraMacros("ef", m);
     $("edit-food-modal")._foodId = id;
     $("edit-food-modal").classList.remove("hidden");
   };
@@ -327,6 +354,7 @@
     $("ee-protein").value = m.protein || "";
     $("ee-carbs").value = m.carbs || "";
     $("ee-fat").value = m.fat || "";
+    fillExtraMacros("ee", m);
     $("edit-entry-modal")._entryId = id;
     $("edit-entry-modal").classList.remove("hidden");
   };
@@ -447,9 +475,10 @@
 
   function renderMacroChart(range) {
     const meta = [
-      { key: "protein", label: "Protein", color: "#2563eb" },
-      { key: "carbs", label: "Carbs", color: "#d97706" },
-      { key: "fat", label: "Fat", color: "#dc2626" }
+      { key: "protein", label: "Protein", unit: "g" },
+      { key: "carbs", label: "Carbs", unit: "g" },
+      { key: "fat", label: "Fat", unit: "g" },
+      ...EXTRA_MACROS
     ];
     const grid = chartGrid(range);
     const labels = grid.cells.map(c => c.label);
@@ -458,27 +487,28 @@
     const series = [];
     const totals = {};
     for (const m of meta) {
+      const color = MACRO_COLORS[m.key];
       const cs = cumulativeSeries(range, e => macroTotal([e], m.key));
       const count = cs.count;
       totals[m.key] = cs.points.length ? cs.points[cs.points.length - 1][1] : 0;
-      series.push({ label: m.label, color: m.color, points: cs.points });
+      series.push({ label: m.label, color, points: cs.points });
       const tgt = t[m.key] ? t[m.key] : null;
       if (tgt && (tgt > 0)) {
         const tVal = tgt * Math.max(1, days);
         series.push({
-          label: "target " + m.label, color: m.color, dashed: true,
+          label: "target " + m.label, color, dashed: true,
           points: [[0, tVal], [Math.max(0, count - 1), tVal]]
         });
       }
     }
     let summary = "";
     if (labels.length > 0) {
-      const parts = meta.map(m => `${m.label} ${Math.round(totals[m.key])}g`).join(" · ");
+      const parts = meta.map(m => `${m.label} ${Math.round(totals[m.key])}${m.unit}`).join(" · ");
       summary = `${RANGE_LABEL[range]} · ${parts}`;
     }
     renderLineChart("cal-macro-chart", "cal-macro-summary", series, {
       xFormat: i => (labels[i] || ""),
-      yFormat: v => Math.round(v) + " g",
+      yFormat: v => Math.round(v).toLocaleString(),
       summary
     });
     syncRangeTabs("cal-macro-range", range);
@@ -537,6 +567,7 @@
       if (protein) macros.protein = protein;
       if (carbs) macros.carbs = carbs;
       if (fat) macros.fat = fat;
+      readExtraMacros("add", macros);
       foodId = nextId("f", D.foods);
       D.foods[foodId] = { name: name, calories: cal, macros: macros };
     }
@@ -554,6 +585,7 @@
     $("add-protein").value = "";
     $("add-carbs").value = "";
     $("add-fat").value = "";
+    fillExtraMacros("add", {});
     $("add-qty").value = "1";
     $("add-time").value = "";
     $("add-date").value = "";
@@ -564,24 +596,24 @@
   function buildSample() {
     const today = todayISO();
     const foodDefs = [
-      { n: "banana", c: 105, p: 1.3, ca: 27, f: 0.4 },
-      { n: "apple", c: 95, p: 0.5, ca: 25, f: 0.3 },
-      { n: "eggs (2)", c: 140, p: 12, ca: 1, f: 10 },
-      { n: "oatmeal", c: 150, p: 5, ca: 27, f: 3 },
-      { n: "greek yogurt", c: 100, p: 17, ca: 6, f: 0.7 },
-      { n: "chicken breast", c: 165, p: 31, ca: 0, f: 3.6 },
-      { n: "rice", c: 205, p: 4, ca: 45, f: 0.4 },
-      { n: "broccoli", c: 55, p: 3.7, ca: 11, f: 0.6 },
-      { n: "peanut butter", c: 190, p: 7, ca: 7, f: 16 },
-      { n: "trail mix", c: 140, p: 4, ca: 14, f: 8 },
-      { n: "salmon", c: 208, p: 20, ca: 0, f: 13 },
-      { n: "sweet potato", c: 112, p: 2, ca: 26, f: 0.1 },
-      { n: "avocado", c: 240, p: 3, ca: 12, f: 22 },
-      { n: "tacos (2)", c: 320, p: 15, ca: 30, f: 15 },
-      { n: "pizza slice", c: 285, p: 12, ca: 36, f: 10 },
-      { n: "burger", c: 540, p: 25, ca: 40, f: 30 },
-      { n: "pasta", c: 350, p: 12, ca: 60, f: 6 },
-      { n: "coffee + cream", c: 60, p: 1, ca: 5, f: 4 }
+      { n: "banana", c: 105, p: 1.3, ca: 27, f: 0.4, s: 1, fi: 3.1, su: 14 },
+      { n: "apple", c: 95, p: 0.5, ca: 25, f: 0.3, s: 2, fi: 4.4, su: 19 },
+      { n: "eggs (2)", c: 140, p: 12, ca: 1, f: 10, s: 142, ch: 372, su: 0.6 },
+      { n: "oatmeal", c: 150, p: 5, ca: 27, f: 3, s: 2, fi: 4, su: 1 },
+      { n: "greek yogurt", c: 100, p: 17, ca: 6, f: 0.7, s: 36, su: 5 },
+      { n: "chicken breast", c: 165, p: 31, ca: 0, f: 3.6, s: 74, ch: 85 },
+      { n: "rice", c: 205, p: 4, ca: 45, f: 0.4, s: 2 },
+      { n: "broccoli", c: 55, p: 3.7, ca: 11, f: 0.6, s: 33, fi: 5.1, su: 1.7 },
+      { n: "peanut butter", c: 190, p: 7, ca: 7, f: 16, s: 140, fi: 1.6, su: 3 },
+      { n: "trail mix", c: 140, p: 4, ca: 14, f: 8, s: 26, fi: 2.4, su: 11 },
+      { n: "salmon", c: 208, p: 20, ca: 0, f: 13, s: 59, ch: 63 },
+      { n: "sweet potato", c: 112, p: 2, ca: 26, f: 0.1, s: 36, fi: 4, su: 5 },
+      { n: "avocado", c: 240, p: 3, ca: 12, f: 22, s: 7, fi: 10, su: 0.7 },
+      { n: "tacos (2)", c: 320, p: 15, ca: 30, f: 15, s: 800, fi: 4, ch: 60, su: 2 },
+      { n: "pizza slice", c: 285, p: 12, ca: 36, f: 10, s: 640, fi: 2.5, ch: 30, su: 4 },
+      { n: "burger", c: 540, p: 25, ca: 40, f: 30, s: 900, fi: 2, ch: 80, su: 8 },
+      { n: "pasta", c: 350, p: 12, ca: 60, f: 6, s: 210, fi: 2 },
+      { n: "coffee + cream", c: 60, p: 1, ca: 5, f: 4, su: 5 }
     ];
 
     const db = { foods: {}, entries: [] };
@@ -590,6 +622,10 @@
       if (f.p) macros.protein = f.p;
       if (f.ca) macros.carbs = f.ca;
       if (f.f) macros.fat = f.f;
+      if (f.s) macros.sodium = f.s;
+      if (f.fi) macros.fiber = f.fi;
+      if (f.ch) macros.cholesterol = f.ch;
+      if (f.su) macros.sugar = f.su;
       db.foods["f" + (i + 1)] = { name: f.n, calories: f.c, macros: macros };
     });
 
@@ -707,6 +743,7 @@
         $("add-protein").value = m.protein || "";
         $("add-carbs").value = m.carbs || "";
         $("add-fat").value = m.fat || "";
+        fillExtraMacros("add", m);
         $("add-name").focus();
         e.target.value = "";
       });
@@ -729,6 +766,7 @@
           if (protein) f.macros.protein = protein;
           if (carbs) f.macros.carbs = carbs;
           if (fat) f.macros.fat = fat;
+          readExtraMacros("ee", f.macros);
         } else {
           const match = findMatchingFood(newName);
           if (match) {
@@ -738,6 +776,7 @@
             if (protein) macros.protein = protein;
             if (carbs) macros.carbs = carbs;
             if (fat) macros.fat = fat;
+            readExtraMacros("ee", macros);
             foodId = nextId("f", D.foods);
             D.foods[foodId] = { name: newName, calories: newCal || 0, macros: macros };
           }
@@ -769,6 +808,7 @@
         if (protein) f.macros.protein = protein;
         if (carbs) f.macros.carbs = carbs;
         if (fat) f.macros.fat = fat;
+        readExtraMacros("ef", f.macros);
         closeCalModals();
         refreshAll();
       });

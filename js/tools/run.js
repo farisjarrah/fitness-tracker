@@ -373,6 +373,8 @@
     const elevGainM = elevNum > 0 ? numToEleM(elevNum) : 0;
     const datetime = $("add-datetime").value || new Date().toISOString().slice(0, 16);
     const location = $("add-location").value.trim();
+    const lat = coordLat($("add-lat").value);
+    const lon = coordLon($("add-lon").value);
     const surface = $("add-surface").value.trim().toLowerCase();
     const workoutType = $("add-type").value.trim();
     const effort = clamp10($("add-effort").value);
@@ -393,9 +395,11 @@
       match.elevGainM = elevGainM || match.elevGainM;
       match.shoesId = shoesId || match.shoesId;
       match.workoutType = workoutType || match.workoutType;
+      match.lat = lat != null ? lat : match.lat;
+      match.lon = lon != null ? lon : match.lon;
     } else {
       runId = nextId("r", D.runs);
-      D.runs[runId] = { name, distanceM, durationS, location, surface, shoesId, elevGainM, elevLossM: 0, workoutType };
+      D.runs[runId] = { name, distanceM, durationS, location, surface, shoesId, elevGainM, elevLossM: 0, workoutType, lat, lon };
     }
 
     D.entries.push({
@@ -410,7 +414,7 @@
       shoeMileage: shoeMileageForRows(shoeRows, distanceM)
     });
 
-    ["add-name", "add-distance", "add-dur-h", "add-dur-m", "add-dur-s", "add-elev", "add-datetime", "add-location", "add-surface", "add-type", "add-notes"].forEach(id => $(id).value = "");
+    ["add-name", "add-distance", "add-dur-h", "add-dur-m", "add-dur-s", "add-elev", "add-datetime", "add-location", "add-lat", "add-lon", "add-surface", "add-type", "add-notes"].forEach(id => $(id).value = "");
     resetShoeRows();
     refreshAll();
   }
@@ -779,7 +783,7 @@
             <td><span class="reg-toggle" onclick="rn_toggleRun('${id}')"><span class="chev">${open ? "▾" : "▸"}</span> ${esc(r.name)}</span></td>
             <td>${r.distanceM ? fmtDist(r.distanceM, 1) + " " + distLabel() : "—"}</td>
             <td class="num">${pace ? fmtPace(pace) : "—"}</td>
-            <td>${esc(r.location || "")}</td>
+            <td>${esc(r.location || "")}${fmtCoords(r.lat, r.lon) ? `<div class="mutednote">${esc(fmtCoords(r.lat, r.lon))}</div>` : ""}</td>
             <td>${esc(r.surface || "")}</td>
             <td>${shoeById(r.shoesId) ? esc(shoeById(r.shoesId).name) : ""}</td>
             <td>${esc(r.workoutType || "")}</td>
@@ -816,6 +820,8 @@
 
     $("er-name").value = r.name;
     $("er-location").value = r.location || "";
+    $("er-lat").value = r.lat ?? "";
+    $("er-lon").value = r.lon ?? "";
     $("er-surface").value = r.surface || "";
     $("er-type").value = r.workoutType || "";
     $("er-distance").value = r.distanceM ? mToNum(r.distanceM).toFixed(2) : "";
@@ -945,10 +951,10 @@
       s3: { name: "Trail Stinson", brand: "Salomon" }
     };
     db.runs = {
-      r1: { name: "Lake Loop", distanceM: 5000, durationS: 1530, location: "City Park", surface: "trail", shoesId: "s1", elevGainM: 35, elevLossM: 35, workoutType: "easy run" },
+      r1: { name: "Lake Loop", distanceM: 5000, durationS: 1530, location: "City Park", surface: "trail", shoesId: "s1", elevGainM: 35, elevLossM: 35, workoutType: "easy run", lat: 40.759, lon: -73.984 },
       r2: { name: "Track intervals", distanceM: 6400, durationS: 2100, location: "High School Track", surface: "track", shoesId: "s2", elevGainM: 0, elevLossM: 0, workoutType: "intervals" },
-      r3: { name: "Tempo Thursday", distanceM: 8000, durationS: 2400, location: "Riverfront", surface: "pavement", shoesId: "s1", elevGainM: 15, elevLossM: 15, workoutType: "tempo" },
-      r4: { name: "Mountain 10k", distanceM: 10000, durationS: 3600, location: "Blue Ridge", surface: "trail", shoesId: "s3", elevGainM: 320, elevLossM: 320, workoutType: "long run" },
+      r3: { name: "Tempo Thursday", distanceM: 8000, durationS: 2400, location: "Riverfront", surface: "pavement", shoesId: "s1", elevGainM: 15, elevLossM: 15, workoutType: "tempo", lat: 40.758, lon: -73.988 },
+      r4: { name: "Mountain 10k", distanceM: 10000, durationS: 3600, location: "Blue Ridge", surface: "trail", shoesId: "s3", elevGainM: 320, elevLossM: 320, workoutType: "long run", lat: 40.783, lon: -73.966 },
       r5: { name: "Easy lunch run", distanceM: 4000, durationS: 1500, location: "Riverfront", surface: "pavement", shoesId: "s2", elevGainM: 5, elevLossM: 5, workoutType: "recovery" }
     };
     let id = 0;
@@ -1003,7 +1009,9 @@
           shoesId: String(r.shoesId ?? ""),
           elevGainM: Number(r.elevGainM || 0),
           elevLossM: Number(r.elevLossM || 0),
-          workoutType: String(r.workoutType ?? "")
+          workoutType: String(r.workoutType ?? ""),
+          lat: r.lat == null ? null : coordLat(r.lat),
+          lon: r.lon == null ? null : coordLon(r.lon)
         };
       }
       const shoesRaw = (raw.shoes && typeof raw.shoes === "object") ? raw.shoes : {};
@@ -1074,6 +1082,8 @@
         $("add-dur-s").value = dS ? Math.round(dS % 60) : "";
         $("add-elev").value = r.elevGainM != null ? eleMToNum(r.elevGainM).toFixed(0) : "";
         $("add-location").value = r.location || "";
+        $("add-lat").value = r.lat ?? "";
+        $("add-lon").value = r.lon ?? "";
         $("add-surface").value = r.surface || "";
         const tmplShoe = r.shoesId && shoeById(r.shoesId) ? shoeById(r.shoesId).name : "";
         resetShoeRows([{ name: tmplShoe, dist: r.distanceM ? mToNum(r.distanceM).toFixed(2) : "" }]);
@@ -1150,6 +1160,8 @@
         if (!name) return;
         r.name = name;
         r.location = $("er-location").value.trim();
+        r.lat = coordLat($("er-lat").value);
+        r.lon = coordLon($("er-lon").value);
         r.surface = $("er-surface").value.trim().toLowerCase();
         r.workoutType = $("er-type").value.trim();
         const d = parseFloat($("er-distance").value);

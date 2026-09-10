@@ -135,6 +135,23 @@ function download() {
   URL.revokeObjectURL(url);
 }
 
+/* -------- GPS coordinate helpers -------- */
+function coordLat(v) {
+  const n = parseFloat(v);
+  return isFinite(n) && Math.abs(n) <= 90 ? n : null;
+}
+
+function coordLon(v) {
+  const n = parseFloat(v);
+  return isFinite(n) && Math.abs(n) <= 180 ? n : null;
+}
+
+function fmtCoords(lat, lon) {
+  if (lat == null || lon == null) return "";
+  const clean = n => (isFinite(n) ? Number(n.toFixed(5)).toString() : String(n));
+  return clean(lat) + ", " + clean(lon);
+}
+
 function backupDB() {
   const app = document.getElementById("app");
   if (!window.DB || !app || app.classList.contains("hidden")) return;
